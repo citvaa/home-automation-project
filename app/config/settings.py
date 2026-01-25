@@ -35,7 +35,10 @@ class MqttConfig:
     base_topic: str = "home"
     sensor_topic_pattern: str = "sensors/{device_id}/{sensor_type}"
     actuator_topic_pattern: str = "actuators/{device_id}/{actuator_type}"
+    batch_topic_pattern: str = "sensors/{device_id}/batch"
     per_sensor_topics: Dict[str, str] = field(default_factory=dict)
+
+# ... later in Config class, add get_batch_topic method (replace snippet after existing get_actuator_topic)
 
 
 @dataclass
@@ -80,6 +83,19 @@ class Config:
 
     def get_actuator_topic(self, actuator_type: str) -> str:
         return self.mqtt.actuator_topic_pattern.format(device_id=self.device.id, actuator_type=actuator_type)
+
+    def get_batch_topic(self, sensor_type: Optional[str] = None) -> str:
+        """Return the topic to publish batches to.
+
+        - If batch.mode == 'global' -> uses `mqtt.batch_topic_pattern`
+        - If batch.mode == 'per_sensor' -> requires `sensor_type` and returns sensor topic for that type
+        """
+        if self.batch.mode == "global":
+            return self.mqtt.batch_topic_pattern.format(device_id=self.device.id)
+        # per_sensor
+        if sensor_type is None:
+            raise ValueError("sensor_type must be provided when batch.mode == 'per_sensor'")
+        return self.get_sensor_topic(sensor_type)
 
 
 def _merge_dict_to_dataclass(dc, data: Dict[str, Any]):
