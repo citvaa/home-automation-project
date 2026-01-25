@@ -1,4 +1,48 @@
 {
+    "device": {
+        "id": "PI1",
+        "name": "pi1-livingroom",
+        "location": "living room"
+    },
+
+    "mqtt": {
+        "broker": "localhost",
+        "port": 1883,
+        "username": "",
+        "password": "",
+        "qos": 1,
+        "base_topic": "home",
+        "sensor_topic_pattern": "sensors/{device_id}/{sensor_type}",
+        "actuator_topic_pattern": "actuators/{device_id}/{actuator_type}",
+        "per_sensor_topics": {
+            "DS1": "sensors/{device_id}/ds1",
+            "DL": "sensors/{device_id}/dl",
+            "DUS1": "sensors/{device_id}/dus1",
+            "DB": "sensors/{device_id}/db",
+            "DPIR1": "sensors/{device_id}/dpir1",
+            "DMS": "sensors/{device_id}/dms"
+        }
+    },
+
+    "batch": {
+        "enabled": true,
+        "mode": "global",            
+        "batch_size": 10,
+        "max_interval_seconds": 5
+    },
+
+    "server": {
+        "influx": {
+            "url": "http://localhost:8086",
+            "token": "YOUR_INFLUX_TOKEN",
+            "org": "my-org",
+            "bucket": "sensors"
+        },
+        "subscribe_topics": ["sensors/#", "actuators/#"],
+        "listen_host": "0.0.0.0",
+        "listen_port": 5000
+    },
+
     "DS1": { "simulated": true, "pin": 5, "delay": 10.0 },
     "DL":  { "simulated": true, "pin": 6 },
     "DUS1": { "simulated": true, "trig": 23, "echo": 24, "delay": 10.0 },
