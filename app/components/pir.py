@@ -8,9 +8,12 @@ def pir_callback(state):
     print(f"[DPIR1 Motion Sensor] {t} motion: {'DETECTED' if state else 'CLEAR'}")
 
 
-def run_pir(settings, threads, stop_event):
+def run_pir(settings, threads, stop_event, callback=None):
     if settings is None:
         return
+
+    if callback is None:
+        callback = pir_callback
 
     delay = settings.get("delay", 10.0)
 
@@ -18,7 +21,7 @@ def run_pir(settings, threads, stop_event):
         from app.sim.pir import run_pir_simulator
 
         print("Starting DPIR1 simulator")
-        thread = threading.Thread(target=run_pir_simulator, args=(delay, pir_callback, stop_event), daemon=True)
+        thread = threading.Thread(target=run_pir_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
         print("DPIR1 simulator started")
@@ -31,7 +34,7 @@ def run_pir(settings, threads, stop_event):
 
         print("Starting DPIR1 real loop")
         thread = threading.Thread(
-            target=run_pir_loop, args=(settings["pin"], delay, pir_callback, stop_event), daemon=True
+            target=run_pir_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)

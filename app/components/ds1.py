@@ -8,9 +8,12 @@ def ds1_callback(state):
     print(f"[DS1 Door Sensor] {t} state: {'PRESSED' if state else 'RELEASED'}")
 
 
-def run_ds1(settings, threads, stop_event):
+def run_ds1(settings, threads, stop_event, callback=None):
     if settings is None:
         return
+
+    if callback is None:
+        callback = ds1_callback
 
     delay = settings.get("delay", 10.0)
 
@@ -18,7 +21,7 @@ def run_ds1(settings, threads, stop_event):
         from app.sim.ds1 import run_ds1_simulator
 
         print("Starting DS1 simulator")
-        thread = threading.Thread(target=run_ds1_simulator, args=(delay, ds1_callback, stop_event), daemon=True)
+        thread = threading.Thread(target=run_ds1_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
         print("DS1 simulator started")
@@ -31,7 +34,7 @@ def run_ds1(settings, threads, stop_event):
 
         print("Starting DS1 real loop")
         thread = threading.Thread(
-            target=run_ds1_loop, args=(settings["pin"], delay, ds1_callback, stop_event), daemon=True
+            target=run_ds1_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)

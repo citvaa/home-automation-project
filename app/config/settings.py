@@ -1,18 +1,24 @@
 import json
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
+
+# Accept both str and Path for file paths
+PathLike = Union[str, Path]
 
 
-def load_settings(file_path: Optional[str] = None) -> Dict[str, Any]:
+def load_settings(file_path: Optional[PathLike] = None) -> Dict[str, Any]:
     """Load raw settings JSON as a dictionary.
 
-    If `file_path` is None, will load `config/settings.json` relative to this module.
+    `file_path` can be a `str` or `pathlib.Path`. If not provided, the default
+    is `config/settings.json` next to this module.
     """
     if file_path is None:
         file_path = Path(__file__).resolve().parent / "settings.json"
     else:
-        file_path = Path(file_path)
+        # coerce str -> Path, if a Path was provided leave as-is
+        if not isinstance(file_path, Path):
+            file_path = Path(file_path)
 
     with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -111,7 +117,7 @@ def _merge_dict_to_dataclass(dc, data: Dict[str, Any]):
             setattr(dc, k, v)
 
 
-def load_config(file_path: Optional[str] = None) -> Config:
+def load_config(file_path: Optional[PathLike] = None) -> Config:
     """Load settings JSON and return a typed `Config` dataclass with defaults and validation."""
     raw = load_settings(file_path)
 

@@ -8,9 +8,12 @@ def dms_callback(state):
     print(f"[DMS Membrane Switch] {t} state: {'PRESSED' if state else 'RELEASED'}")
 
 
-def run_dms(settings, threads, stop_event):
+def run_dms(settings, threads, stop_event, callback=None):
     if settings is None:
         return
+
+    if callback is None:
+        callback = dms_callback
 
     delay = settings.get("delay", 10.0)
 
@@ -18,7 +21,7 @@ def run_dms(settings, threads, stop_event):
         from app.sim.dms import run_dms_simulator
 
         print("Starting DMS simulator")
-        thread = threading.Thread(target=run_dms_simulator, args=(delay, dms_callback, stop_event), daemon=True)
+        thread = threading.Thread(target=run_dms_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
         print("DMS simulator started")
@@ -31,7 +34,7 @@ def run_dms(settings, threads, stop_event):
 
         print("Starting DMS real loop")
         thread = threading.Thread(
-            target=run_dms_loop, args=(settings["pin"], delay, dms_callback, stop_event), daemon=True
+            target=run_dms_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)

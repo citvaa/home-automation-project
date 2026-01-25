@@ -11,9 +11,12 @@ def dus1_callback(distance):
         print(f"[DUS1 Ultrasonic] {t} distance: {distance:.2f} cm")
 
 
-def run_dus1(settings, threads, stop_event):
+def run_dus1(settings, threads, stop_event, callback=None):
     if settings is None:
         return
+
+    if callback is None:
+        callback = dus1_callback
 
     delay = settings.get("delay", 10.0)
     trig = settings.get("trig")
@@ -25,7 +28,7 @@ def run_dus1(settings, threads, stop_event):
         print("Starting DUS1 simulator")
         thread = threading.Thread(
             target=run_dus1_simulator,
-            args=(delay, dus1_callback, stop_event),
+            args=(delay, callback, stop_event),
             daemon=True,
         )
         thread.start()
@@ -45,7 +48,7 @@ def run_dus1(settings, threads, stop_event):
         print("Starting DUS1 real loop")
         thread = threading.Thread(
             target=run_dus1_loop,
-            args=(trig, echo, delay, dus1_callback, stop_event),
+            args=(trig, echo, delay, callback, stop_event),
             daemon=True,
         )
         thread.start()
