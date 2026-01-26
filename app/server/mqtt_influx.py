@@ -39,14 +39,27 @@ class MqttInfluxService:
 
         # queue stores tuples of (topic, payload)
         self._queue: "queue.Queue[Tuple[str, Any]]" = queue.Queue()
+        # actuator publish queue (topic, payload_json, qos)
+        self._actuator_queue: "queue.Queue[Tuple[str, str, int]]" = queue.Queue(maxsize=1000)
+
         self._stop_event = threading.Event()
         self._worker_thread: Optional[threading.Thread] = None
+        # publisher and monitoring threads
+        self._publisher_thread: Optional[threading.Thread] = None
+        self._monitor_thread: Optional[threading.Thread] = None
+
         # write API (set in start)
         self._write_api: Any = None
 
         # config for writer batching
         self._batch_size = cfg.batch.batch_size
         self._max_interval = cfg.batch.max_interval_seconds
+
+        # monitoring / thresholds
+        self._monitor_interval = 10  # seconds between health logs
+        self._max_queue_size_warn = 500
+        self._publish_timeout_warning = 2.0  # seconds
+        self._write_timeout_warning = 2.0  # seconds (log if write takes longer)    
 
     def start(self):
         # setup influx client
@@ -87,12 +100,40 @@ class MqttInfluxService:
         # start writer thread
         self._worker_thread = threading.Thread(target=self._writer_loop, daemon=True)
         self._worker_thread.start()
+        # start actuator publisher thread
+        self._publisher_thread = threading.Thread(target=self._publisher_loop, daemon=True)
+        self._publisher_thread.start()
+        # start monitor thread
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor_thread.start()
         print("[MqttInfluxService] started")
 
     def stop(self):
         self._stop_event.set()
         if self._worker_thread:
             self._worker_thread.join(timeout=5)
+        # stop publisher
+        if self._publisher_thread:
+            self._publisher_thread.join(timeout=5)
+        # stop monitor
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=5)
+
+        # drain actuator queue trying to publish remaining messages (best-effort)
+        try:
+            while not self._actuator_queue.empty():
+                try:
+                    topic, data, qos = self._actuator_queue.get_nowait()
+                    if self._mqtt_client is not None:
+                        try:
+                            self._mqtt_client.publish(topic, data, qos=qos)
+                        except Exception:
+                            pass
+                except queue.Empty:
+                    break
+        except Exception:
+            pass
+
         if self._internal_mqtt and self._mqtt_client is not None:
             try:
                 self._mqtt_client.loop_stop()
@@ -244,6 +285,8 @@ class MqttInfluxService:
             if self._write_api is None:
                 raise RuntimeError("InfluxDB write API not initialized")
 
+            # time the write and warn if it takes too long
+            start_write = time.time()
             if hasattr(self._write_api, "write"):
                 # influxdb-client modern API
                 # write expects bucket/org/record
@@ -257,8 +300,10 @@ class MqttInfluxService:
                     self._write_api(points)
                 except Exception:
                     raise RuntimeError("No suitable write method found on InfluxDB client")
-
-            print(f"[MqttInfluxService] wrote {len(points)} points to InfluxDB")
+            write_dur = time.time() - start_write
+            if write_dur > self._write_timeout_warning:
+                print(f"[MqttInfluxService] WARNING: Influx write took {write_dur:.2f}s for {len(points)} points")
+            print(f"[MqttInfluxService] wrote {len(points)} points to InfluxDB in {write_dur:.3f}s")
         except Exception as e:
             print(f"[MqttInfluxService] write error: {e}")
 
@@ -274,11 +319,51 @@ class MqttInfluxService:
         # Ensure qos is an int (static checkers) and valid
         qos = int(qos)
         data = json.dumps(payload)
-        if self._mqtt_client is None:
-            print(f"[MqttInfluxService] No MQTT client; would publish to {topic}: {data}")
-        else:
-            res = self._mqtt_client.publish(topic, data, qos=qos)
-            print(f"[MqttInfluxService] published actuator message to {topic}: {data}; publish result: {res}")
+        # Enqueue non-blocking to avoid blocking callers (e.g., Flask request thread)
+        try:
+            self._actuator_queue.put_nowait((topic, data, qos))
+            print(f"[MqttInfluxService] enqueued actuator message to {topic}: {data}")
+            return True
+        except queue.Full:
+            # drop and log
+            print(f"[MqttInfluxService] WARNING: actuator queue full, dropping message to {topic}")
+            return False
+
+    def _publisher_loop(self):
+        """Worker that pulls actuator messages off a queue and publishes them via MQTT.
+        Keeps publishes off request threads to avoid blocking I/O in callbacks/handlers.
+        """
+        while not self._stop_event.is_set():
+            try:
+                topic, data, qos = self._actuator_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                start = time.time()
+                if self._mqtt_client is None:
+                    print(f"[MqttInfluxService] No MQTT client; actuator publish skipped for {topic}")
+                else:
+                    res = self._mqtt_client.publish(topic, data, qos=qos)
+                    dur = time.time() - start
+                    if dur > self._publish_timeout_warning:
+                        print(f"[MqttInfluxService] WARNING: actuator publish to {topic} took {dur:.2f}s")
+                    print(f"[MqttInfluxService] actuator publish result for {topic}: {res}")
+            except Exception as e:
+                print(f"[MqttInfluxService] actuator publish error for {topic}: {e}")
+
+    def _monitor_loop(self):
+        """Periodic health checks and logging for queues to detect backpressure/deadlocks."""
+        while not self._stop_event.wait(self._monitor_interval):
+            try:
+                in_q = self._queue.qsize()
+                act_q = self._actuator_queue.qsize()
+                print(f"[MqttInfluxService] queue sizes - incoming:{in_q}, actuator:{act_q}")
+                if in_q > self._max_queue_size_warn:
+                    print(f"[MqttInfluxService] WARNING: incoming queue size {in_q} exceeds threshold {self._max_queue_size_warn}")
+                if act_q > self._max_queue_size_warn:
+                    print(f"[MqttInfluxService] WARNING: actuator queue size {act_q} exceeds threshold {self._max_queue_size_warn}")
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

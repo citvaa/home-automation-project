@@ -107,6 +107,7 @@ class BatchPublisher:
                 # check timeout
                 now = time.time()
                 if batch and (now - last_flush) >= self._max_interval:
+                    print(f"[BatchPublisher] interval flush triggered for {len(batch)} readings")
                     self._publish_batch(batch)
                     batch = []
                     last_flush = now
@@ -136,6 +137,7 @@ class BatchPublisher:
                 # check for any batches exceeding interval
                 for s_type, reading_list in list(batches.items()):
                     if reading_list and (now - last_flush_map[s_type]) >= self._max_interval:
+                        print(f"[BatchPublisher] interval flush triggered for sensor {s_type}: {len(reading_list)} readings")
                         self._publish_batch(reading_list, sensor_type=s_type)
                         batches[s_type] = []
                         last_flush_map[s_type] = now

@@ -80,6 +80,31 @@ def test_service_write():
     assert len(fake_influx._write_api.written) >= 1
 
 
+def test_publish_actuator_queued():
+    cfg = load_config()
+    fake_mqtt = FakeMqttClient()
+    fake_influx = FakeInfluxClient()
+
+    svc = MqttInfluxService(cfg, mqtt_client=fake_mqtt, influx_client=fake_influx)
+    svc.start()
+
+    # queue an actuator message and let publisher thread deliver it
+    payload = {"state": "on", "device_id": cfg.device.id}
+    ok = svc.publish_actuator('led', payload, device_id=cfg.device.id)
+    assert ok is True
+
+    # give publisher a moment
+    time.sleep(0.2)
+
+    svc.stop()
+
+    assert len(fake_mqtt.published) >= 1
+    topic, payload_str, qos = fake_mqtt.published[0]
+    assert 'actuators' in topic
+    assert 'state' in payload_str
+
+
 if __name__ == "__main__":
     test_service_write()
+    test_publish_actuator_queued()
     print("OK")
