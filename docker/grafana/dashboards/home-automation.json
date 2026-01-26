@@ -15,7 +15,7 @@
         "targets": [
           {
             "refId": "A",
-            "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\") |> filter(fn: (r) => r[\"device_id\"] == \"PI1\")"
+            "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\") |> filter(fn: (r) => r[\\"device_id\\"] == \"$device_id\")"
           }
         ]
       },
@@ -25,15 +25,62 @@
         "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
         "id": 2,
         "targets": [
-          {"refId": "A", "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DUS1\") |> filter(fn: (r) => r[\"device_id\"] == \"PI1\")"}
+          {"refId": "A", "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DUS1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\")"}
         ]
+      },
+      {
+        "title": "Actuator Control",
+        "type": "grafana-button-panel",
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 8},
+        "id": 3,
+        "options": {
+          "buttons": [
+            {
+              "label": "LED ON",
+              "method": "POST",
+              "url": "http://app:5000/actuator/$device_id/led",
+              "payload": "{ \"state\": \"on\" }",
+              "headers": {"Content-Type": "application/json"}
+            },
+            {
+              "label": "LED OFF",
+              "method": "POST",
+              "url": "http://app:5000/actuator/$device_id/led",
+              "payload": "{ \"state\": \"off\" }",
+              "headers": {"Content-Type": "application/json"}
+            },
+            {
+              "label": "BUZZER ON",
+              "method": "POST",
+              "url": "http://app:5000/actuator/$device_id/buzzer",
+              "payload": "{ \"state\": \"on\" }",
+              "headers": {"Content-Type": "application/json"}
+            }
+          ]
+        }
       }
     ],
     "refresh": "5s",
     "schemaVersion": 30,
     "style": "dark",
     "tags": [],
-    "templating": {"list": []},
+    "templating": {"list": [
+      {
+        "type": "custom",
+        "name": "device_id",
+        "label": "Device",
+        "query": "PI1",
+        "current": {"text": "PI1", "value": "PI1"}
+      },
+      {
+        "type": "custom",
+        "name": "actuator_type",
+        "label": "Actuator",
+        "query": "led,buzzer",
+        "current": {"text": "led", "value": "led"}
+      }
+    ]},
+
     "time": {"from": "now-1h", "to": "now"},
     "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"], "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]},
     "timezone": "browser",

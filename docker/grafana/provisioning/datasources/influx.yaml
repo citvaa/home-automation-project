@@ -10,7 +10,7 @@ providers:
     basicAuth: false
     isDefault: true
     jsonData:
-      organization: "my-org"
+      organization: "ftn"
       defaultBucket: "sensors"
       httpMode: "POST"
     secureJsonData:

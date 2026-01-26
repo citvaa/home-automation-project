@@ -263,6 +263,7 @@ class MqttInfluxService:
             print(f"[MqttInfluxService] No MQTT client; would publish to {topic}: {data}")
         else:
             self._mqtt_client.publish(topic, data, qos=qos)
+            print(f"[MqttInfluxService] published actuator message to {topic}: {data}")
 
 
 if __name__ == "__main__":
