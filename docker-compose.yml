@@ -1,0 +1,65 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./docker/mosquitto/config:/mosquitto/config
+      - ./docker/mosquitto/data:/mosquitto/data
+      - ./docker/mosquitto/log:/mosquitto/log
+
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      - INFLUXDB_INIT_MODE=setup
+      - INFLUXDB_INIT_USERNAME=admin
+      - INFLUXDB_INIT_PASSWORD=adminpass
+      - INFLUXDB_INIT_ORG=my-org
+      - INFLUXDB_INIT_BUCKET=sensors
+      - INFLUXDB_INIT_ADMIN_TOKEN=influx-token
+    ports:
+      - '8086:8086'
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - '3000:3000'
+    depends_on:
+      - influxdb
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  app:
+    build: .
+    depends_on:
+      - mosquitto
+      - influxdb
+    environment:
+      - INFLUX_TOKEN=influx-token
+      - INFLUX_ORG=my-org
+      - INFLUX_BUCKET=sensors
+      - MQTT_BROKER=mosquitto
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./:/app:ro
+
+  simulator:
+    image: python:3.11-slim
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    command: ["sh", "-c", "pip install --no-cache-dir paho-mqtt && python /sim/simulate_publisher.py"]
+    volumes:
+      - ./scripts:/sim:ro
+
+volumes:
+  influxdb_data:

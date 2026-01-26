@@ -1,0 +1,17 @@
+apiVersion: 1
+providers:
+  - name: 'InfluxDB'
+    orgId: 1
+    folder: ''
+    type: influxdb
+    typeLogoUrl: grafana-influxdb
+    access: proxy
+    url: 'http://influxdb:8086'
+    basicAuth: false
+    isDefault: true
+    jsonData:
+      organization: "my-org"
+      defaultBucket: "sensors"
+      httpMode: "POST"
+    secureJsonData:
+      token: "OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ=="

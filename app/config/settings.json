@@ -6,7 +6,7 @@
     },
 
     "mqtt": {
-        "broker": "localhost",
+        "broker": "mosquitto",
         "port": 1883,
         "username": "",
         "password": "",
@@ -34,8 +34,8 @@
 
     "server": {
         "influx": {
-            "url": "http://localhost:8086",
-            "token": "YOUR_INFLUX_TOKEN",
+            "url": "http://influxdb:8086",
+            "token": "OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ==",
             "org": "my-org",
             "bucket": "sensors"
         },
