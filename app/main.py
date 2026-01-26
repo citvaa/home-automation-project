@@ -1,3 +1,9 @@
+# Ensure running the module directly (python app/main.py) works by adding project root to sys.path
+# Prefer running with: python -m app.main
+import sys, pathlib
+if __package__ is None:
+    sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
+
 import threading
 import time
 from datetime import datetime, timezone
