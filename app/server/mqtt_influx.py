@@ -120,6 +120,11 @@ class MqttInfluxService:
         except Exception as e:
             print(f"[MqttInfluxService] Failed to decode message on {getattr(msg, 'topic', '<unknown>')}: {e}")
             return
+        # log received message for debugging
+        try:
+            print(f"[MqttInfluxService] received message on {msg.topic}: {data}")
+        except Exception:
+            pass
         # push tuple(topic, data)
         # type: ignore[call-arg] - queue typed to hold tuples
         self._queue.put((msg.topic, data))
@@ -158,6 +163,12 @@ class MqttInfluxService:
             self._flush_buffer(buffer)
 
     def _flush_buffer(self, buffer: List[Dict]):
+        # debug: show what's being flushed
+        try:
+            sample = [e["payload"] for e in buffer][:3]
+            print(f"[MqttInfluxService] flushing {len(buffer)} messages; sample payloads: {sample}")
+        except Exception:
+            pass
         points = []
         for e in buffer:
             topic = e["topic"]
@@ -252,8 +263,12 @@ class MqttInfluxService:
             print(f"[MqttInfluxService] write error: {e}")
 
     # Helper to publish actuator messages
-    def publish_actuator(self, actuator_type: str, payload: Dict[str, Any], qos: Optional[int] = None):
-        topic = self.cfg.get_actuator_topic(actuator_type)
+    def publish_actuator(self, actuator_type: str, payload: Dict[str, Any], qos: Optional[int] = None, device_id: Optional[str] = None):
+        # allow overriding device_id for topic construction (useful for per-request device ids)
+        if device_id is None:
+            topic = self.cfg.get_actuator_topic(actuator_type)
+        else:
+            topic = self.cfg.mqtt.actuator_topic_pattern.format(device_id=device_id, actuator_type=actuator_type)
         if qos is None:
             qos = self.cfg.mqtt.qos
         # Ensure qos is an int (static checkers) and valid
@@ -262,8 +277,8 @@ class MqttInfluxService:
         if self._mqtt_client is None:
             print(f"[MqttInfluxService] No MQTT client; would publish to {topic}: {data}")
         else:
-            self._mqtt_client.publish(topic, data, qos=qos)
-            print(f"[MqttInfluxService] published actuator message to {topic}: {data}")
+            res = self._mqtt_client.publish(topic, data, qos=qos)
+            print(f"[MqttInfluxService] published actuator message to {topic}: {data}; publish result: {res}")
 
 
 if __name__ == "__main__":

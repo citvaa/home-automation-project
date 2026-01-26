@@ -43,6 +43,13 @@ def test_global_batch_by_size():
     # batch_size=3 -> should publish at least 1 batch quickly
     assert wait_for_publishes(fake, min_count=1, timeout=2.0)
 
+    # check that the published payload contains the simulated flag inside readings
+    topic, payload, qos = fake.published[0]
+    data = json.loads(payload)
+    assert 'readings' in data
+    for r in data['readings']:
+        assert 'simulated' in r
+
     pub.stop()
     # After stop, remaining should be flushed
     assert len(fake.published) >= 2

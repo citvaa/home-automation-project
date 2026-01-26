@@ -22,7 +22,7 @@ def actuator(device_id, actuator_type):
     payload.setdefault("timestamp", request.json.get("timestamp") if request.json else None)
     # Publish using service
     try:
-        _svc.publish_actuator(actuator_type, payload)
+        _svc.publish_actuator(actuator_type, payload, device_id=device_id)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "published"}), 200
