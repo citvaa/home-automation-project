@@ -104,6 +104,43 @@ def test_publish_actuator_queued():
     assert 'state' in payload_str
 
 
+def test_normalize_value_suffix_fallback():
+    cfg = load_config()
+    fake_mqtt = FakeMqttClient()
+    fake_influx = FakeInfluxClient()
+
+    # Force fallback behavior (Point = None) to inspect dict written
+    import app.server.mqtt_influx as msvc
+    orig_point = msvc.Point
+    msvc.Point = None
+
+    svc = MqttInfluxService(cfg, mqtt_client=fake_mqtt, influx_client=fake_influx)
+    svc.start()
+
+    # simulate incoming single reading with suffix value
+    msg = types.SimpleNamespace(topic=cfg.server.subscribe_topics[0], payload=json.dumps({
+        "sensor_type": "DS1", "value": "500m", "unit": None, "device_id": cfg.device.id, "simulated": False
+    }).encode('utf-8'))
+
+    svc._on_message(fake_mqtt, None, msg)
+    time.sleep(0.2)
+    svc.stop()
+
+    # restore
+    msvc.Point = orig_point
+
+    assert len(fake_influx._write_api.written) >= 1
+    # written is a tuple (bucket, org, record)
+    bucket, org, record = fake_influx._write_api.written[0]
+    assert isinstance(record, list)
+    rec = record[0]
+    # tags should include unit 'm'
+    assert rec['tags'].get('unit') == 'm'
+    # fields should include numeric value 500.0
+    assert rec['fields'].get('value') == 500.0
+
+
+
 if __name__ == "__main__":
     test_service_write()
     test_publish_actuator_queued()

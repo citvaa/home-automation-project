@@ -2,6 +2,7 @@ import json
 import queue
 import threading
 import time
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple, cast
 
@@ -224,13 +225,50 @@ class MqttInfluxService:
                 unit = payload.get("unit") if isinstance(payload, dict) else None
                 timestamp = payload.get("timestamp") if isinstance(payload, dict) else None
 
+                # Normalize value: coerce numeric strings (with optional unit suffix) and booleans
+                try:
+                    if isinstance(value, str):
+                        s = value.strip()
+                        sl = s.lower()
+                        # boolean-like
+                        if sl in ("true", "false", "on", "off", "1", "0"):
+                            if sl in ("true", "on", "1"):
+                                value = True
+                            else:
+                                value = False
+                        else:
+                            m = re.match(r'^([+-]?\d+(?:\.\d+)?)(?:\s*([a-zA-Z%]+))?$', s)
+                            if m:
+                                num = float(m.group(1))
+                                suff = m.group(2)
+                                value = num
+                                if suff:
+                                    unit = (unit or suff)
+                                    print(f"[MqttInfluxService] normalized {sensor_type} value '{s}' -> value={num} unit={unit}")
+                except Exception as ex:
+                    # never allow normalization to raise
+                    print(f"[MqttInfluxService] normalization error: {ex}")
+
                 # construct Point
                 if Point is None:
-                    # fallback: store as raw JSON string
+                    # fallback: construct structured dict with tags and normalized fields
+                    fields: Dict[str, Any] = {}
+                    # fields for common types
+                    if isinstance(value, (int, float)):
+                        fields["value"] = float(value)
+                    elif isinstance(value, bool):
+                        fields["value"] = int(value)
+                    else:
+                        fields["value_str"] = str(value)
+
+                    tags = {"device_id": device_id or "unknown", "simulated": str(simulated)}
+                    if unit:
+                        tags["unit"] = str(unit)
+
                     lines = {
                         "measurement": sensor_type or "sensors",
-                        "tags": {"device_id": device_id or "unknown", "simulated": str(simulated)},
-                        "fields": {"payload": json.dumps(payload)},
+                        "tags": tags,
+                        "fields": fields,
                     }
                     points.append(lines)
                 else:
@@ -247,13 +285,12 @@ class MqttInfluxService:
                         p.tag("simulated", str(simulated))
                     if unit:
                         p.tag("unit", unit)
-                    # fields
+                    # fields (normalized)
                     if isinstance(value, (int, float)):
                         p.field("value", float(value))
                     elif isinstance(value, bool):
                         p.field("value", int(value))
                     else:
-                        # store as string
                         p.field("value_str", str(value))
                     # timestamp
                     if timestamp:
