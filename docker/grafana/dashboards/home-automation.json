@@ -15,7 +15,7 @@
         "targets": [
           {
             "refId": "A",
-            "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\") |> filter(fn: (r) => r[\\"device_id\\"] == \"$device_id\")"
+            "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\")"
           }
         ]
       },
@@ -25,13 +25,49 @@
         "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
         "id": 2,
         "targets": [
-          {"refId": "A", "query": "from(bucket:\\"sensors\\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DUS1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\")"}
+          {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DUS1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\")"}
+        ]
+      },
+      {
+        "title": "DPIR1 - Motion",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
+        "id": 4,
+        "targets": [
+          {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DPIR1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> last()"}
+        ]
+      },
+      {
+        "title": "DL - LED State",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
+        "id": 5,
+        "targets": [
+          {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DL\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> last()"}
+        ]
+      },
+      {
+        "title": "DB - Buzzer State",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 8},
+        "id": 6,
+        "targets": [
+          {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DB\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> last()"}
+        ]
+      },
+      {
+        "title": "DMS - Membrane",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 8},
+        "id": 7,
+        "targets": [
+          {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DMS\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> last()"}
         ]
       },
       {
         "title": "Actuator Control",
         "type": "grafana-button-panel",
-        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 8},
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 12},
         "id": 3,
         "options": {
           "buttons": [
