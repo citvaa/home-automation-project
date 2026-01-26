@@ -14,18 +14,29 @@ _svc = MqttInfluxService(cfg)
 def health():
     return jsonify({"status": "ok"}), 200
 
-@app.route("/actuator/<device_id>/<actuator_type>", methods=["POST"])
+@app.route("/actuator/<device_id>/<actuator_type>", methods=["GET", "POST"])
 def actuator(device_id, actuator_type):
-    payload = request.get_json() or {}
+    # Support GET for simple button-driven requests: /actuator/<device>/<type>?state=on
+    if request.method == "GET":
+        state = request.args.get("state")
+        if not state:
+            return jsonify({"error": "query parameter 'state' is required for GET"}), 400
+        payload = {"state": state}
+    else:
+        payload = request.get_json() or {}
+
     # attach device info
     payload.setdefault("device_id", device_id)
-    payload.setdefault("timestamp", request.json.get("timestamp") if request.json else None)
+    # use get_json(silent=True) so GET requests without Content-Type don't cause a 415
+    req_json = request.get_json(silent=True)
+    if req_json and req_json.get("timestamp") is not None:
+        payload.setdefault("timestamp", req_json.get("timestamp"))
     # Publish using service
     try:
         _svc.publish_actuator(actuator_type, payload, device_id=device_id)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"status": "published"}), 200
+    return jsonify({"status": "published", "method": request.method}), 200
 
 
 def start_service():

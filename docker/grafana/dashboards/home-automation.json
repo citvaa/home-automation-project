@@ -1,5 +1,6 @@
 {
   "dashboard": {
+    "title": "Home Automation",
     "annotations": {"list": []},
     "editable": true,
     "gnetId": null,
@@ -66,33 +67,12 @@
       },
       {
         "title": "Actuator Control",
-        "type": "grafana-button-panel",
+        "type": "text",
         "gridPos": {"h": 4, "w": 24, "x": 0, "y": 12},
         "id": 3,
         "options": {
-          "buttons": [
-            {
-              "label": "LED ON",
-              "method": "POST",
-              "url": "http://app:5000/actuator/$device_id/led",
-              "payload": "{ \"state\": \"on\" }",
-              "headers": {"Content-Type": "application/json"}
-            },
-            {
-              "label": "LED OFF",
-              "method": "POST",
-              "url": "http://app:5000/actuator/$device_id/led",
-              "payload": "{ \"state\": \"off\" }",
-              "headers": {"Content-Type": "application/json"}
-            },
-            {
-              "label": "BUZZER ON",
-              "method": "POST",
-              "url": "http://app:5000/actuator/$device_id/buzzer",
-              "payload": "{ \"state\": \"on\" }",
-              "headers": {"Content-Type": "application/json"}
-            }
-          ]
+          "mode": "html",
+          "content": "<div style=\"padding:10px;display:flex;gap:8px;align-items:center;\">\n<iframe name=\"actuator-target\" style=\"display:none;\"></iframe>\n<form action=\"http://localhost:5000/actuator/PI1/led\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"on\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">LED ON</button>\n</form>\n<form action=\"http://localhost:5000/actuator/PI1/led\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"off\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">LED OFF</button>\n</form>\n<form action=\"http://localhost:5000/actuator/PI1/buzzer\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"on\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">BUZZER ON</button>\n</form>\n</div>"
         }
       }
     ],
@@ -120,7 +100,6 @@
     "time": {"from": "now-1h", "to": "now"},
     "timepicker": {"refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m"], "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]},
     "timezone": "browser",
-    "title": "Home Automation",
     "version": 1
   },
   "overwrite": true
