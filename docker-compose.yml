@@ -51,16 +51,5 @@ services:
     volumes:
       - ./:/app:ro
 
-  simulator:
-    image: python:3.11-slim
-    depends_on:
-      - mosquitto
-    environment:
-      - MQTT_BROKER=mosquitto
-      - MQTT_PORT=1883
-    command: ["sh", "-c", "pip install --no-cache-dir paho-mqtt && python /sim/simulate_publisher.py"]
-    volumes:
-      - ./scripts:/sim:ro
-
 volumes:
   influxdb_data:
