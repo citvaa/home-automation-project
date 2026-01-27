@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 import threading
+from typing import Any, Dict, cast
 
 from app.config.settings import load_config
 from app.server.mqtt_influx import MqttInfluxService
@@ -21,12 +22,22 @@ def actuator(device_id, actuator_type):
         state = request.args.get("state")
         if not state:
             return jsonify({"error": "query parameter 'state' is required for GET"}), 400
-        payload = {"state": state}
+        payload: Dict[str, Any] = {"state": state}
     else:
-        payload = request.get_json() or {}
+        payload = cast(Dict[str, Any], request.get_json() or {})
 
     # attach device info
     payload.setdefault("device_id", device_id)
+    # attach sensor_type + value for actuator points (so they are written to InfluxDB)
+    if "sensor_type" not in payload:
+        actuator_map = {"led": "DL", "buzzer": "DB"}
+        payload["sensor_type"] = actuator_map.get(actuator_type) or actuator_type
+    if "value" not in payload and payload.get("state") is not None:
+        state_val = str(payload.get("state")).lower()
+        if state_val in ("on", "true", "1"):
+            payload["value"] = True
+        elif state_val in ("off", "false", "0"):
+            payload["value"] = False
     # use get_json(silent=True) so GET requests without Content-Type don't cause a 415
     req_json = request.get_json(silent=True)
     if req_json and req_json.get("timestamp") is not None:
