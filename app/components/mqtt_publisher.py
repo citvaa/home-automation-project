@@ -82,6 +82,9 @@ class BatchPublisher:
         # ensure timestamp
         if "timestamp" not in reading:
             reading["timestamp"] = datetime.now(timezone.utc).isoformat()
+        # ensure device identity for filtering in dashboards
+        reading.setdefault("device_id", self.cfg.device.id)
+        reading.setdefault("device_name", self.cfg.device.name)
         # minimal normalization
         self._queue.put(reading)
 

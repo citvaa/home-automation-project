@@ -27,7 +27,7 @@ except ImportError:
     GPIO = None
 
 
-def start_ds1(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None):
+def start_ds1(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None, device_id: Optional[str] = None, device_name: Optional[str] = None):
     if settings is None:
         return
 
@@ -42,13 +42,15 @@ def start_ds1(settings, threads, stop_event, publisher: Optional[BatchPublisher]
                 "unit": None,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "simulated": settings.get("simulated", False),
+                "device_id": device_id,
+                "device_name": device_name,
             }
             publisher.enqueue_reading(reading)
 
     run_ds1(settings, threads, stop_event, callback=cb)
 
 
-def start_pir(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None):
+def start_pir(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None, device_id: Optional[str] = None, device_name: Optional[str] = None):
     if settings is None:
         return
 
@@ -63,13 +65,15 @@ def start_pir(settings, threads, stop_event, publisher: Optional[BatchPublisher]
                 "unit": None,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "simulated": settings.get("simulated", False),
+                "device_id": device_id,
+                "device_name": device_name,
             }
             publisher.enqueue_reading(reading)
 
     run_pir(settings, threads, stop_event, callback=cb)
 
 
-def start_dus1(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None):
+def start_dus1(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None, device_id: Optional[str] = None, device_name: Optional[str] = None):
     if settings is None:
         return
 
@@ -87,13 +91,15 @@ def start_dus1(settings, threads, stop_event, publisher: Optional[BatchPublisher
                 "unit": "cm",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "simulated": settings.get("simulated", False),
+                "device_id": device_id,
+                "device_name": device_name,
             }
             publisher.enqueue_reading(reading)
 
     run_dus1(settings, threads, stop_event, callback=cb)
 
 
-def start_dms(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None):
+def start_dms(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None, device_id: Optional[str] = None, device_name: Optional[str] = None):
     if settings is None:
         return
 
@@ -108,6 +114,8 @@ def start_dms(settings, threads, stop_event, publisher: Optional[BatchPublisher]
                 "unit": None,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "simulated": settings.get("simulated", False),
+                "device_id": device_id,
+                "device_name": device_name,
             }
             publisher.enqueue_reading(reading)
 
@@ -175,10 +183,10 @@ if __name__ == "__main__":
     publisher.start()
 
     try:
-        start_ds1(raw_settings.get("DS1"), threads, stop_event, publisher=publisher)
-        start_pir(raw_settings.get("DPIR1"), threads, stop_event, publisher=publisher)
-        start_dus1(raw_settings.get("DUS1"), threads, stop_event, publisher=publisher)
-        start_dms(raw_settings.get("DMS"), threads, stop_event, publisher=publisher)
+        start_ds1(raw_settings.get("DS1"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
+        start_pir(raw_settings.get("DPIR1"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
+        start_dus1(raw_settings.get("DUS1"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
+        start_dms(raw_settings.get("DMS"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
 
         led_ctrl = DLController(raw_settings.get("DL"))
         buzzer_ctrl = DBController(raw_settings.get("DB"))
