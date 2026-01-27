@@ -21,6 +21,7 @@ except Exception:
     WritePrecision = None
 
 from config.settings import Config, load_config
+from server.utils import normalize_value, parse_timestamp
 
 
 class MqttInfluxService:
@@ -228,26 +229,9 @@ class MqttInfluxService:
                 unit = payload.get("unit") if isinstance(payload, dict) else None
                 timestamp = payload.get("timestamp") if isinstance(payload, dict) else None
 
-                # Normalize value: coerce numeric strings (with optional unit suffix) and booleans
+                # Normalize value using shared utility (coerce strings to bool/number and detect unit)
                 try:
-                    if isinstance(value, str):
-                        s = value.strip()
-                        sl = s.lower()
-                        # boolean-like
-                        if sl in ("true", "false", "on", "off", "1", "0"):
-                            if sl in ("true", "on", "1"):
-                                value = True
-                            else:
-                                value = False
-                        else:
-                            m = re.match(r'^([+-]?\d+(?:\.\d+)?)(?:\s*([a-zA-Z%]+))?$', s)
-                            if m:
-                                num = float(m.group(1))
-                                suff = m.group(2)
-                                value = num
-                                if suff:
-                                    unit = (unit or suff)
-                                    print(f"[MqttInfluxService] normalized {sensor_type} value '{s}' -> value={num} unit={unit}")
+                    value, unit = normalize_value(value, unit)
                 except Exception as ex:
                     # never allow normalization to raise
                     print(f"[MqttInfluxService] normalization error: {ex}")
@@ -297,23 +281,9 @@ class MqttInfluxService:
                         p.field("value_str", str(value))
                     # timestamp
                     if timestamp:
-                        # try converting ISO timestamp to datetime and set time if possible
-                        try:
-                            if isinstance(timestamp, str):
-                                # handle trailing Z
-                                ts = timestamp.replace("Z", "+00:00")
-                                dt = datetime.fromisoformat(ts)
-                            elif isinstance(timestamp, (int, float)):
-                                # assume epoch seconds
-                                dt = datetime.fromtimestamp(float(timestamp), timezone.utc)
-                            else:
-                                dt = None
-
-                            if dt is not None and WritePrecision is not None and hasattr(WritePrecision, "NS"):
-                                p.time(dt, WritePrecision.NS)
-                        except Exception:
-                            # ignore timestamp parsing errors
-                            pass
+                        dt = parse_timestamp(timestamp)
+                        if dt is not None and WritePrecision is not None and hasattr(WritePrecision, "NS"):
+                            p.time(dt, WritePrecision.NS)
                     points_by_bucket.setdefault(bucket, []).append(p)
             except Exception as ex:
                 print(f"[MqttInfluxService] error preparing point: {ex}")
