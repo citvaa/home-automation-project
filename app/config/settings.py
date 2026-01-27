@@ -62,6 +62,7 @@ class InfluxConfig:
     token: str = ""
     org: str = ""
     bucket: str = "sensors"
+    actuator_bucket: str = "actuators"
 
 
 @dataclass

@@ -73,6 +73,8 @@ class MqttInfluxService:
             raise RuntimeError("InfluxDB client instance not available")
         # cast for static checkers that may not infer non-None above
         self._write_api = cast(Any, self._influx_client).write_api()
+        # ensure actuator bucket exists (best-effort)
+        self._ensure_buckets()
 
         # setup mqtt client
         if self._internal_mqtt:
@@ -211,10 +213,11 @@ class MqttInfluxService:
             print(f"[MqttInfluxService] flushing {len(buffer)} messages; sample payloads: {sample}")
         except Exception:
             pass
-        points = []
+        points_by_bucket: Dict[str, List[Any]] = {}
         for e in buffer:
             topic = e["topic"]
             payload = e["payload"]
+            bucket = self._get_bucket_for_topic(topic)
             # payload expected to have sensor fields or be a single reading
             try:
                 sensor_type = payload.get("sensor_type") if isinstance(payload, dict) else None
@@ -270,7 +273,7 @@ class MqttInfluxService:
                         "tags": tags,
                         "fields": fields,
                     }
-                    points.append(lines)
+                    points_by_bucket.setdefault(bucket, []).append(lines)
                 else:
                     m = sensor_type or "sensors"
                     p = Point(m)
@@ -311,7 +314,7 @@ class MqttInfluxService:
                         except Exception:
                             # ignore timestamp parsing errors
                             pass
-                    points.append(p)
+                    points_by_bucket.setdefault(bucket, []).append(p)
             except Exception as ex:
                 print(f"[MqttInfluxService] error preparing point: {ex}")
                 continue
@@ -321,28 +324,52 @@ class MqttInfluxService:
             # Defensive: _write_api may be any object from different client versions
             if self._write_api is None:
                 raise RuntimeError("InfluxDB write API not initialized")
-
-            # time the write and warn if it takes too long
-            start_write = time.time()
-            if hasattr(self._write_api, "write"):
-                # influxdb-client modern API
-                # write expects bucket/org/record
-                self._write_api.write(bucket=self.cfg.server.influx.bucket, org=self.cfg.server.influx.org, record=points)
-            elif hasattr(self._write_api, "write_points"):
-                # fallback for other clients
-                self._write_api.write_points(points)
-            else:
-                # last resort: try calling write directly
-                try:
-                    self._write_api(points)
-                except Exception:
-                    raise RuntimeError("No suitable write method found on InfluxDB client")
-            write_dur = time.time() - start_write
-            if write_dur > self._write_timeout_warning:
-                print(f"[MqttInfluxService] WARNING: Influx write took {write_dur:.2f}s for {len(points)} points")
-            print(f"[MqttInfluxService] wrote {len(points)} points to InfluxDB in {write_dur:.3f}s")
+            for bucket, points in points_by_bucket.items():
+                if not points:
+                    continue
+                # time the write and warn if it takes too long
+                start_write = time.time()
+                if hasattr(self._write_api, "write"):
+                    # influxdb-client modern API
+                    # write expects bucket/org/record
+                    self._write_api.write(bucket=bucket, org=self.cfg.server.influx.org, record=points)
+                elif hasattr(self._write_api, "write_points"):
+                    # fallback for other clients
+                    self._write_api.write_points(points)
+                else:
+                    # last resort: try calling write directly
+                    try:
+                        self._write_api(points)
+                    except Exception:
+                        raise RuntimeError("No suitable write method found on InfluxDB client")
+                write_dur = time.time() - start_write
+                if write_dur > self._write_timeout_warning:
+                    print(f"[MqttInfluxService] WARNING: Influx write took {write_dur:.2f}s for {len(points)} points")
+                print(f"[MqttInfluxService] wrote {len(points)} points to InfluxDB bucket='{bucket}' in {write_dur:.3f}s")
         except Exception as e:
             print(f"[MqttInfluxService] write error: {e}")
+
+    def _get_bucket_for_topic(self, topic: str) -> str:
+        if topic.startswith("actuators/"):
+            return self.cfg.server.influx.actuator_bucket
+        return self.cfg.server.influx.bucket
+
+    def _ensure_buckets(self):
+        try:
+            if self._influx_client is None or not hasattr(self._influx_client, "buckets_api"):
+                return
+            api = self._influx_client.buckets_api()
+            for name in {self.cfg.server.influx.bucket, self.cfg.server.influx.actuator_bucket}:
+                if not name:
+                    continue
+                try:
+                    if api.find_bucket_by_name(name) is None:
+                        api.create_bucket(bucket_name=name, org=self.cfg.server.influx.org)
+                        print(f"[MqttInfluxService] created bucket '{name}'")
+                except Exception as ex:
+                    print(f"[MqttInfluxService] WARNING: bucket ensure failed for '{name}': {ex}")
+        except Exception as ex:
+            print(f"[MqttInfluxService] WARNING: bucket ensure failed: {ex}")
 
     # Helper to publish actuator messages
     def publish_actuator(self, actuator_type: str, payload: Dict[str, Any], qos: Optional[int] = None, device_id: Optional[str] = None):

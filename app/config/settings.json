@@ -37,7 +37,8 @@
             "url": "http://influxdb:8086",
             "token": "OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ==",
             "org": "ftn",
-            "bucket": "sensors"
+            "bucket": "sensors",
+            "actuator_bucket": "actuators"
         },
         "subscribe_topics": ["sensors/#", "actuators/#"],
         "listen_host": "0.0.0.0",
