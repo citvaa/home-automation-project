@@ -156,6 +156,31 @@ def load_config(file_path: Optional[PathLike] = None) -> Config:
         except ValueError:
             pass
 
+    # Influx overrides from environment (.env / Docker envs)
+    env_influx_url = os.environ.get("INFLUX_URL")
+    if env_influx_url:
+        cfg.server.influx.url = env_influx_url
+    env_influx_token = os.environ.get("INFLUX_TOKEN")
+    if env_influx_token:
+        cfg.server.influx.token = env_influx_token
+    env_influx_org = os.environ.get("INFLUX_ORG")
+    if env_influx_org:
+        cfg.server.influx.org = env_influx_org
+    env_influx_bucket = os.environ.get("INFLUX_BUCKET")
+    if env_influx_bucket:
+        cfg.server.influx.bucket = env_influx_bucket
+    env_actuator_bucket = os.environ.get("INFLUX_ACTUATOR_BUCKET")
+    if env_actuator_bucket:
+        cfg.server.influx.actuator_bucket = env_actuator_bucket
+
+    # Device identity overrides
+    env_device_id = os.environ.get("DEVICE_ID")
+    if env_device_id:
+        cfg.device.id = env_device_id
+    env_device_name = os.environ.get("DEVICE_NAME")
+    if env_device_name:
+        cfg.device.name = env_device_name
+
     # Merge per-sensor keys (anything not in known sections)
     known = {"device", "mqtt", "batch", "server"}
     sensors = {k: v for k, v in raw.items() if k not in known}
