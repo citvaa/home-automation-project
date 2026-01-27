@@ -45,6 +45,7 @@ services:
       - INFLUX_TOKEN=OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ==
       - INFLUX_ORG=ftn
       - INFLUX_BUCKET=sensors
+      - INFLUX_ACTUATOR_BUCKET=actuators
       - MQTT_BROKER=mosquitto
     ports:
       - '5000:5000'
