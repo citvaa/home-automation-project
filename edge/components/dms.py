@@ -33,8 +33,8 @@ def run_dms(settings, threads, stop_event, callback=None):
             logger.warning("RPi.GPIO not available; cannot start DMS real loop.")
             return
 
-        print("Starting DMS real loop")
+        logger.info("Starting DMS real loop")
         thread = threading.Thread(target=run_dms_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("DMS loop started")
+        logger.info("DMS loop started")

@@ -33,8 +33,8 @@ def run_pir(settings, threads, stop_event, callback=None):
             logger.warning("RPi.GPIO not available; cannot start PIR real loop.")
             return
 
-        print("Starting PIR real loop")
+        logger.info("Starting PIR real loop")
         thread = threading.Thread(target=run_pir_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("PIR loop started")
+        logger.info("PIR loop started")

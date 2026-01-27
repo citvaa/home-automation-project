@@ -36,10 +36,10 @@ def run_dus1(settings, threads, stop_event, callback=None):
             logger.warning("RPi.GPIO not available; cannot start DUS1 real loop.")
             return
 
-        print("Starting DUS1 real loop")
+        logger.info("Starting DUS1 real loop")
         thread = threading.Thread(
             target=run_dus1_loop, args=(settings["trig"], settings["echo"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)
-        print("DUS1 loop started")
+        logger.info("DUS1 loop started")

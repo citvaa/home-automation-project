@@ -33,10 +33,10 @@ def run_ds1(settings, threads, stop_event, callback=None):
             logger.warning("RPi.GPIO not available; cannot start DS1 real loop.")
             return
 
-        print("Starting DS1 real loop")
+        logger.info("Starting DS1 real loop")
         thread = threading.Thread(
             target=run_ds1_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)
-        print("DS1 loop started")
+        logger.info("DS1 loop started")

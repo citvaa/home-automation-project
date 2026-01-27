@@ -96,7 +96,7 @@ class MqttInfluxService:
                 self._mqtt_client.connect(self.cfg.mqtt.broker, self.cfg.mqtt.port)
                 self._mqtt_client.loop_start()
             except Exception as e:
-                print(f"[MqttInfluxService] WARNING: MQTT connect failed: {e}")
+                logger.warning("MQTT connect failed: %s", e)
         else:
             # user provided client must have on_message attribute set or we set ours
             if self._mqtt_client is not None:
@@ -343,7 +343,7 @@ class MqttInfluxService:
                 except Exception as ex:
                     logger.warning("bucket ensure failed for '%s': %s", name, ex)
         except Exception as ex:
-            print(f"[MqttInfluxService] WARNING: bucket ensure failed: {ex}")
+            logger.warning("bucket ensure failed: %s", ex)
 
     # Helper to publish actuator messages
     def publish_actuator(self, actuator_type: str, payload: Dict[str, Any], qos: Optional[int] = None, device_id: Optional[str] = None):
