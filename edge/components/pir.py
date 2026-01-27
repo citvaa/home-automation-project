@@ -1,11 +1,12 @@
 import threading
 import time
+from common.logging import get_logger
+logger = get_logger(__name__)
 
 
 def pir_callback(state):
     t = time.strftime("%H:%M:%S", time.localtime())
-    print("=" * 20)
-    print(f"[DPIR1 Motion Sensor] {t} motion: {'DETECTED' if state else 'CLEAR'}")
+    logger.info("[DPIR1 Motion Sensor] %s motion: %s", t, 'DETECTED' if state else 'CLEAR')
 
 
 def run_pir(settings, threads, stop_event, callback=None):
@@ -20,16 +21,16 @@ def run_pir(settings, threads, stop_event, callback=None):
     if settings.get("simulated", False):
         from edge.sim.pir import run_pir_simulator
 
-        print("Starting PIR simulator")
+        logger.info("Starting PIR simulator")
         thread = threading.Thread(target=run_pir_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("PIR simulator started")
+        logger.info("PIR simulator started")
     else:
         try:
             from edge.hw.pir import run_pir_loop
         except ImportError:
-            print("RPi.GPIO not available; cannot start PIR real loop.")
+            logger.warning("RPi.GPIO not available; cannot start PIR real loop.")
             return
 
         print("Starting PIR real loop")

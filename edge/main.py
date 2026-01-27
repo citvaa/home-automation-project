@@ -32,9 +32,10 @@ def start_ds1(settings, threads, stop_event, publisher: Optional[BatchPublisher]
         return
 
     def cb(state):
+        from common.logging import get_logger
+        logger = get_logger(__name__)
         t = time.strftime("%H:%M:%S", time.localtime())
-        print("=" * 20)
-        print(f"[DS1 Door Sensor] {t} state: {'PRESSED' if state else 'RELEASED'}")
+        logger.info("[DS1 Door Sensor] %s state: %s", t, 'PRESSED' if state else 'RELEASED')
         if publisher:
             reading = {
                 "sensor_type": "DS1",
@@ -55,9 +56,10 @@ def start_pir(settings, threads, stop_event, publisher: Optional[BatchPublisher]
         return
 
     def cb(state):
+        from common.logging import get_logger
+        logger = get_logger(__name__)
         t = time.strftime("%H:%M:%S", time.localtime())
-        print("=" * 20)
-        print(f"[DPIR1 Motion Sensor] {t} motion: {'DETECTED' if state else 'CLEAR'}")
+        logger.info("[DPIR1 Motion Sensor] %s motion: %s", t, 'DETECTED' if state else 'CLEAR')
         if publisher:
             reading = {
                 "sensor_type": "DPIR1",
@@ -78,12 +80,13 @@ def start_dus1(settings, threads, stop_event, publisher: Optional[BatchPublisher
         return
 
     def cb(distance):
+        from common.logging import get_logger
+        logger = get_logger(__name__)
         t = time.strftime("%H:%M:%S", time.localtime())
-        print("=" * 20)
         if distance is None:
-            print(f"[DUS1 Ultrasonic] {t} distance: timeout")
+            logger.info("[DUS1 Ultrasonic] %s distance: timeout", t)
         else:
-            print(f"[DUS1 Ultrasonic] {t} distance: {distance:.2f} cm")
+            logger.info("[DUS1 Ultrasonic] %s distance: %.2f cm", t, distance)
         if publisher:
             reading = {
                 "sensor_type": "DUS1",
@@ -104,9 +107,10 @@ def start_dms(settings, threads, stop_event, publisher: Optional[BatchPublisher]
         return
 
     def cb(state):
+        from common.logging import get_logger
+        logger = get_logger(__name__)
         t = time.strftime("%H:%M:%S", time.localtime())
-        print("=" * 20)
-        print(f"[DMS Membrane Switch] {t} state: {'PRESSED' if state else 'RELEASED'}")
+        logger.info("[DMS Membrane Switch] %s state: %s", t, 'PRESSED' if state else 'RELEASED')
         if publisher:
             reading = {
                 "sensor_type": "DMS",
@@ -154,7 +158,8 @@ def command_loop(stop_event, led_ctrl=None, buzzer_ctrl=None):
             if led_ctrl:
                 led_ctrl.set_state(led_state)
             else:
-                print("LED controller not available.")
+                from common.logging import get_logger
+                get_logger(__name__).warning("LED controller not available.")
         elif cmd in ("buzzer", "buzzer on", "buzzer off"):
             if cmd == "buzzer":
                 buzzer_state = not buzzer_state
@@ -164,15 +169,20 @@ def command_loop(stop_event, led_ctrl=None, buzzer_ctrl=None):
             if buzzer_ctrl:
                 buzzer_ctrl.set_state(buzzer_state)
             else:
-                print("Buzzer controller not available.")
+                from common.logging import get_logger
+                get_logger(__name__).warning("Buzzer controller not available.")
         elif cmd == "":
             continue
         else:
-            print("Nepoznata komanda.")
+            from common.logging import get_logger
+            get_logger(__name__).warning("Nepoznata komanda.")
 
 
 if __name__ == "__main__":
-    print("Starting edge")
+    from common.logging import configure_logging, get_logger
+    configure_logging()
+    logger = get_logger(__name__)
+    logger.info("Starting edge")
     raw_settings = load_settings()
     cfg = load_config()
     threads = []
@@ -200,7 +210,8 @@ if __name__ == "__main__":
             time.sleep(0.5)
 
     except KeyboardInterrupt:
-        print("Stopping edge")
+        from common.logging import get_logger
+        get_logger(__name__).info("Stopping edge")
         stop_event.set()
     finally:
         # Stop publisher and join threads

@@ -20,4 +20,5 @@ class DBController:
             except Exception:
                 pass
 
-        print(f"[DB] Buzzer set to {'ON' if self.state else 'OFF'}")
+        from common.logging import get_logger
+        get_logger(__name__).info("[DB] Buzzer set to %s", 'ON' if self.state else 'OFF')

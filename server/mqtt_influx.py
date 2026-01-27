@@ -20,6 +20,10 @@ except Exception:
     Point = None
     WritePrecision = None
 
+import logging
+from common.logging import get_logger
+logger = get_logger(__name__)
+
 from config.settings import Config, load_config
 from server.utils import normalize_value, parse_timestamp
 
@@ -110,7 +114,7 @@ class MqttInfluxService:
         # start monitor thread
         self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self._monitor_thread.start()
-        print("[MqttInfluxService] started")
+        logger.info("MqttInfluxService started")
 
     def stop(self):
         self._stop_event.set()
@@ -149,25 +153,25 @@ class MqttInfluxService:
                 self._influx_client.close()
             except Exception:
                 pass
-        print("[MqttInfluxService] stopped")
+        logger.info("MqttInfluxService stopped")
 
     # MQTT callbacks
     def _on_connect(self, client, userdata, flags, rc):
-        print(f"[MqttInfluxService] mqtt connected with rc={rc}")
+        logger.info("MQTT connected (rc=%s)", rc)
         for topic in self.cfg.server.subscribe_topics:
             client.subscribe(topic)
-            print(f"[MqttInfluxService] subscribed to {topic}")
+            logger.info("subscribed to %s", topic)
 
     def _on_message(self, client, userdata, msg):
         try:
             payload = msg.payload.decode("utf-8")
             data = json.loads(payload)
         except Exception as e:
-            print(f"[MqttInfluxService] Failed to decode message on {getattr(msg, 'topic', '<unknown>')}: {e}")
+            logger.warning("Failed to decode message on %s: %s", getattr(msg, 'topic', '<unknown>'), e)
             return
         # log received message for debugging
         try:
-            print(f"[MqttInfluxService] received message on {msg.topic}: {data}")
+            logger.debug("received message on %s: %s", msg.topic, data)
         except Exception:
             pass
         # push tuple(topic, data)
@@ -211,7 +215,7 @@ class MqttInfluxService:
         # debug: show what's being flushed
         try:
             sample = [e["payload"] for e in buffer][:3]
-            print(f"[MqttInfluxService] flushing {len(buffer)} messages; sample payloads: {sample}")
+            logger.debug("flushing %d messages; sample payloads: %s", len(buffer), sample)
         except Exception:
             pass
         points_by_bucket: Dict[str, List[Any]] = {}
@@ -234,7 +238,7 @@ class MqttInfluxService:
                     value, unit = normalize_value(value, unit)
                 except Exception as ex:
                     # never allow normalization to raise
-                    print(f"[MqttInfluxService] normalization error: {ex}")
+                    logger.warning("normalization error: %s", ex)
 
                 # construct Point
                 if Point is None:
@@ -286,7 +290,7 @@ class MqttInfluxService:
                             p.time(dt, WritePrecision.NS)
                     points_by_bucket.setdefault(bucket, []).append(p)
             except Exception as ex:
-                print(f"[MqttInfluxService] error preparing point: {ex}")
+                logger.exception("error preparing point: %s", ex)
                 continue
 
         # write to influx
@@ -314,10 +318,10 @@ class MqttInfluxService:
                         raise RuntimeError("No suitable write method found on InfluxDB client")
                 write_dur = time.time() - start_write
                 if write_dur > self._write_timeout_warning:
-                    print(f"[MqttInfluxService] WARNING: Influx write took {write_dur:.2f}s for {len(points)} points")
-                print(f"[MqttInfluxService] wrote {len(points)} points to InfluxDB bucket='{bucket}' in {write_dur:.3f}s")
+                    logger.warning("Influx write took %.2fs for %d points", write_dur, len(points))
+                logger.info("wrote %d points to InfluxDB bucket='%s' in %.3fs", len(points), bucket, write_dur)
         except Exception as e:
-            print(f"[MqttInfluxService] write error: {e}")
+            logger.exception("write error: %s", e)
 
     def _get_bucket_for_topic(self, topic: str) -> str:
         if topic.startswith("actuators/"):
@@ -335,9 +339,9 @@ class MqttInfluxService:
                 try:
                     if api.find_bucket_by_name(name) is None:
                         api.create_bucket(bucket_name=name, org=self.cfg.server.influx.org)
-                        print(f"[MqttInfluxService] created bucket '{name}'")
+                        logger.info("created bucket '%s'", name)
                 except Exception as ex:
-                    print(f"[MqttInfluxService] WARNING: bucket ensure failed for '{name}': {ex}")
+                    logger.warning("bucket ensure failed for '%s': %s", name, ex)
         except Exception as ex:
             print(f"[MqttInfluxService] WARNING: bucket ensure failed: {ex}")
 
@@ -356,13 +360,11 @@ class MqttInfluxService:
         # Enqueue non-blocking to avoid blocking callers (e.g., Flask request thread)
         try:
             self._actuator_queue.put_nowait((topic, data, qos))
-            print(f"[MqttInfluxService] enqueued actuator message to {topic}: {data}")
+            logger.info("enqueued actuator message to %s: %s", topic, data)
             return True
         except queue.Full:
             # drop and log
-            print(f"[MqttInfluxService] WARNING: actuator queue full, dropping message to {topic}")
-            return False
-
+            logger.warning("actuator queue full, dropping message to %s", topic)
     def _publisher_loop(self):
         """Worker that pulls actuator messages off a queue and publishes them via MQTT.
         Keeps publishes off request threads to avoid blocking I/O in callbacks/handlers.
@@ -375,15 +377,15 @@ class MqttInfluxService:
             try:
                 start = time.time()
                 if self._mqtt_client is None:
-                    print(f"[MqttInfluxService] No MQTT client; actuator publish skipped for {topic}")
+                    logger.info("No MQTT client; actuator publish skipped for %s", topic)
                 else:
                     res = self._mqtt_client.publish(topic, data, qos=qos)
                     dur = time.time() - start
                     if dur > self._publish_timeout_warning:
-                        print(f"[MqttInfluxService] WARNING: actuator publish to {topic} took {dur:.2f}s")
-                    print(f"[MqttInfluxService] actuator publish result for {topic}: {res}")
+                        logger.warning("actuator publish to %s took %.2fs", topic, dur)
+                    logger.debug("actuator publish result for %s: %s", topic, res)
             except Exception as e:
-                print(f"[MqttInfluxService] actuator publish error for {topic}: {e}")
+                logger.exception("actuator publish error for %s: %s", topic, e)
 
     def _monitor_loop(self):
         """Periodic health checks and logging for queues to detect backpressure/deadlocks."""
@@ -391,11 +393,11 @@ class MqttInfluxService:
             try:
                 in_q = self._queue.qsize()
                 act_q = self._actuator_queue.qsize()
-                print(f"[MqttInfluxService] queue sizes - incoming:{in_q}, actuator:{act_q}")
+                logger.info("queue sizes - incoming:%d, actuator:%d", in_q, act_q)
                 if in_q > self._max_queue_size_warn:
-                    print(f"[MqttInfluxService] WARNING: incoming queue size {in_q} exceeds threshold {self._max_queue_size_warn}")
+                    logger.warning("incoming queue size %d exceeds threshold %d", in_q, self._max_queue_size_warn)
                 if act_q > self._max_queue_size_warn:
-                    print(f"[MqttInfluxService] WARNING: actuator queue size {act_q} exceeds threshold {self._max_queue_size_warn}")
+                    logger.warning("actuator queue size %d exceeds threshold %d", act_q, self._max_queue_size_warn)
             except Exception:
                 pass
 

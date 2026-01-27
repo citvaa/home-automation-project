@@ -4,4 +4,5 @@ class BuzzerSimulator:
     @classmethod
     def set_state(cls, on):
         cls.state = bool(on)
-        print(f"[SIM] Buzzer -> {'ON' if on else 'OFF'}")
+        from common.logging import get_logger
+        get_logger(__name__).info("[SIM] Buzzer -> %s", 'ON' if on else 'OFF')

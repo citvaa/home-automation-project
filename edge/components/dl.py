@@ -20,4 +20,5 @@ class DLController:
             except Exception:
                 pass
 
-        print(f"[DL] LED set to {'ON' if self.state else 'OFF'}")
+        from common.logging import get_logger
+        get_logger(__name__).info("[DL] LED set to %s", 'ON' if self.state else 'OFF')

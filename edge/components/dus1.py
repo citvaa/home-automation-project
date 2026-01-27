@@ -1,14 +1,15 @@
 import threading
 import time
+from common.logging import get_logger
+logger = get_logger(__name__)
 
 
 def dus1_callback(distance):
     t = time.strftime("%H:%M:%S", time.localtime())
-    print("=" * 20)
     if distance is None:
-        print(f"[DUS1 Ultrasonic] {t} distance: timeout")
+        logger.info("[DUS1 Ultrasonic] %s distance: timeout", t)
     else:
-        print(f"[DUS1 Ultrasonic] {t} distance: {distance:.2f} cm")
+        logger.info("[DUS1 Ultrasonic] %s distance: %.2f cm", t, distance)
 
 
 def run_dus1(settings, threads, stop_event, callback=None):
@@ -23,16 +24,16 @@ def run_dus1(settings, threads, stop_event, callback=None):
     if settings.get("simulated", False):
         from edge.sim.dus1 import run_dus1_simulator
 
-        print("Starting DUS1 simulator")
+        logger.info("Starting DUS1 simulator")
         thread = threading.Thread(target=run_dus1_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("DUS1 simulator started")
+        logger.info("DUS1 simulator started")
     else:
         try:
             from edge.hw.dus1 import run_dus1_loop
         except ImportError:
-            print("RPi.GPIO not available; cannot start DUS1 real loop.")
+            logger.warning("RPi.GPIO not available; cannot start DUS1 real loop.")
             return
 
         print("Starting DUS1 real loop")

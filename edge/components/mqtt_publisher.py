@@ -11,6 +11,9 @@ try:
 except Exception:  # paho may not be installed in test envs
     mqtt = None
 
+from common.logging import get_logger
+logger = get_logger(__name__)
+
 from config.settings import Config, load_config
 
 FORMAT_VERSION = "1.0"
@@ -51,11 +54,11 @@ class BatchPublisher:
                 self._mqtt_client.connect(self.cfg.mqtt.broker, self.cfg.mqtt.port)
                 self._mqtt_client.loop_start()
             except Exception as e:
-                print(f"[BatchPublisher] WARNING: MQTT connect failed: {e}")
+                logger.warning("MQTT connect failed: %s", e)
 
         self._worker_thread = threading.Thread(target=self._worker_loop, daemon=True)
         self._worker_thread.start()
-        print("[BatchPublisher] started")
+        logger.info("BatchPublisher started")
 
     def stop(self):
         self._stop_event.set()
@@ -71,7 +74,7 @@ class BatchPublisher:
                     self._mqtt_client.disconnect()
                 except Exception:
                     pass
-        print("[BatchPublisher] stopped")
+        logger.info("BatchPublisher stopped")
 
     def enqueue_reading(self, reading: Dict[str, Any]):
         """Enqueue a single reading dict.
@@ -110,7 +113,7 @@ class BatchPublisher:
                 # check timeout
                 now = time.time()
                 if batch and (now - last_flush) >= self._max_interval:
-                    print(f"[BatchPublisher] interval flush triggered for {len(batch)} readings")
+                    logger.info("interval flush triggered for %d readings", len(batch))
                     self._publish_batch(batch)
                     batch = []
                     last_flush = now
@@ -140,7 +143,7 @@ class BatchPublisher:
                 # check for any batches exceeding interval
                 for s_type, reading_list in list(batches.items()):
                     if reading_list and (now - last_flush_map[s_type]) >= self._max_interval:
-                        print(f"[BatchPublisher] interval flush triggered for sensor {s_type}: {len(reading_list)} readings")
+                        logger.info("interval flush triggered for sensor %s: %d readings", s_type, len(reading_list))
                         self._publish_batch(reading_list, sensor_type=s_type)
                         batches[s_type] = []
                         last_flush_map[s_type] = now
@@ -166,12 +169,12 @@ class BatchPublisher:
             payload = json.dumps(envelope)
             # publish
             if self._mqtt_client is None:
-                print(f"[BatchPublisher] No MQTT client; would publish to {topic}: {payload}")
+                logger.info("No MQTT client; would publish to %s: %s", topic, payload)
             else:
                 self._mqtt_client.publish(topic, payload, qos=self.cfg.mqtt.qos)
-                print(f"[BatchPublisher] published {len(readings)} readings to {topic}")
+                logger.info("published %d readings to %s", len(readings), topic)
         except Exception as e:
-            print(f"[BatchPublisher] publish error: {e}")
+            logger.exception("publish error: %s", e)
 
     def _flush_all(self):
         # drain queue and publish in current mode
