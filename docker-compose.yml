@@ -15,7 +15,7 @@ services:
       - INFLUXDB_INIT_MODE=setup
       - INFLUXDB_INIT_USERNAME=admin
       - INFLUXDB_INIT_PASSWORD=adminpass
-      - INFLUXDB_INIT_ORG=my-org
+      - INFLUXDB_INIT_ORG=ftn
       - INFLUXDB_INIT_BUCKET=sensors
       - INFLUXDB_INIT_ADMIN_TOKEN=influx-token
     ports:
@@ -42,8 +42,8 @@ services:
       - mosquitto
       - influxdb
     environment:
-      - INFLUX_TOKEN=influx-token
-      - INFLUX_ORG=my-org
+      - INFLUX_TOKEN=OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ==
+      - INFLUX_ORG=ftn
       - INFLUX_BUCKET=sensors
       - MQTT_BROKER=mosquitto
     ports:
