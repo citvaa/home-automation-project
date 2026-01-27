@@ -6,7 +6,7 @@
     },
 
     "mqtt": {
-        "broker": "mosquitto",
+        "broker": "localhost",
         "port": 1883,
         "username": "",
         "password": "",

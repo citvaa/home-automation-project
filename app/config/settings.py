@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, List, Optional, Union
@@ -142,6 +143,17 @@ def load_config(file_path: Optional[PathLike] = None) -> Config:
             cfg.server.subscribe_topics = server_raw.get("subscribe_topics", cfg.server.subscribe_topics)
         cfg.server.listen_host = server_raw.get("listen_host", cfg.server.listen_host)
         cfg.server.listen_port = server_raw.get("listen_port", cfg.server.listen_port)
+
+    # Environment overrides (useful for Docker/host differences)
+    env_broker = os.environ.get("MQTT_BROKER")
+    if env_broker:
+        cfg.mqtt.broker = env_broker
+    env_port = os.environ.get("MQTT_PORT")
+    if env_port:
+        try:
+            cfg.mqtt.port = int(env_port)
+        except ValueError:
+            pass
 
     # Merge per-sensor keys (anything not in known sections)
     known = {"device", "mqtt", "batch", "server"}
