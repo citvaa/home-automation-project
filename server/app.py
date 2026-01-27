@@ -2,8 +2,8 @@ from flask import Flask, jsonify, request
 import threading
 from typing import Any, Dict, cast
 
-from app.config.settings import load_config
-from app.server.mqtt_influx import MqttInfluxService
+from config.settings import load_config
+from server.mqtt_influx import MqttInfluxService
 
 app = Flask(__name__)
 cfg = load_config()

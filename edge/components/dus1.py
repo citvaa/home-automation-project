@@ -19,37 +19,25 @@ def run_dus1(settings, threads, stop_event, callback=None):
         callback = dus1_callback
 
     delay = settings.get("delay", 10.0)
-    trig = settings.get("trig")
-    echo = settings.get("echo")
 
     if settings.get("simulated", False):
-        from app.sim.dus1 import run_dus1_simulator
+        from edge.sim.dus1 import run_dus1_simulator
 
         print("Starting DUS1 simulator")
-        thread = threading.Thread(
-            target=run_dus1_simulator,
-            args=(delay, callback, stop_event),
-            daemon=True,
-        )
+        thread = threading.Thread(target=run_dus1_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
         print("DUS1 simulator started")
     else:
         try:
-            from app.hw.dus1 import run_dus1_loop
+            from edge.hw.dus1 import run_dus1_loop
         except ImportError:
             print("RPi.GPIO not available; cannot start DUS1 real loop.")
             return
 
-        if trig is None or echo is None:
-            print("DUS1 pins not configured; skipping.")
-            return
-
         print("Starting DUS1 real loop")
         thread = threading.Thread(
-            target=run_dus1_loop,
-            args=(trig, echo, delay, callback, stop_event),
-            daemon=True,
+            target=run_dus1_loop, args=(settings["trig"], settings["echo"], delay, callback, stop_event), daemon=True
         )
         thread.start()
         threads.append(thread)

@@ -11,7 +11,7 @@ try:
 except Exception:  # paho may not be installed in test envs
     mqtt = None
 
-from app.config.settings import Config, load_config
+from config.settings import Config, load_config
 
 FORMAT_VERSION = "1.0"
 

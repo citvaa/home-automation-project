@@ -1,5 +1,5 @@
-# Ensure running the module directly (python app/main.py) works by adding project root to sys.path
-# Prefer running with: python -m app.main
+# Ensure running the module directly (python edge/main.py) works by adding project root to sys.path
+# Prefer running with: python -m edge.main
 import sys, pathlib
 if __package__ is None:
     sys.path.append(str(pathlib.Path(__file__).resolve().parents[1]))
@@ -8,16 +8,16 @@ import threading
 import time
 from datetime import datetime, timezone
 from typing import Optional
-from app.config.settings import load_settings, load_config
+from config.settings import load_settings, load_config
 
 # Sensors/components
-from app.components.ds1 import run_ds1
-from app.components.pir import run_pir
-from app.components.dus1 import run_dus1
-from app.components.dms import run_dms
-from app.components.dl import DLController
-from app.components.db import DBController
-from app.components.mqtt_publisher import BatchPublisher
+from edge.components.ds1 import run_ds1
+from edge.components.pir import run_pir
+from edge.components.dus1 import run_dus1
+from edge.components.dms import run_dms
+from edge.components.dl import DLController
+from edge.components.db import DBController
+from edge.components.mqtt_publisher import BatchPublisher
 
 # RPi.GPIO is optional (not needed for simulation)
 try:
@@ -172,7 +172,7 @@ def command_loop(stop_event, led_ctrl=None, buzzer_ctrl=None):
 
 
 if __name__ == "__main__":
-    print("Starting app")
+    print("Starting edge")
     raw_settings = load_settings()
     cfg = load_config()
     threads = []
@@ -200,7 +200,7 @@ if __name__ == "__main__":
             time.sleep(0.5)
 
     except KeyboardInterrupt:
-        print("Stopping app")
+        print("Stopping edge")
         stop_event.set()
     finally:
         # Stop publisher and join threads

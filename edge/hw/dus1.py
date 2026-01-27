@@ -1,15 +1,21 @@
 import time
-import RPi.GPIO as GPIO
+try:
+    import RPi.GPIO as GPIO
+except Exception:
+    GPIO = None
 
 
 def setup_ultrasonic(trig_pin, echo_pin):
-    GPIO.setup(trig_pin, GPIO.OUT)
-    GPIO.setup(echo_pin, GPIO.IN)
-    GPIO.output(trig_pin, False)
-    time.sleep(0.05)
+    if GPIO is not None:
+        GPIO.setup(trig_pin, GPIO.OUT)
+        GPIO.setup(echo_pin, GPIO.IN)
+        GPIO.output(trig_pin, False)
+        time.sleep(0.05)
 
 
 def measure_distance(trig_pin, echo_pin, timeout=0.02):
+    if GPIO is None:
+        return None
     GPIO.output(trig_pin, True)
     time.sleep(0.00001)
     GPIO.output(trig_pin, False)

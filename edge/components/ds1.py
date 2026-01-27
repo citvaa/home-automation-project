@@ -18,7 +18,7 @@ def run_ds1(settings, threads, stop_event, callback=None):
     delay = settings.get("delay", 10.0)
 
     if settings.get("simulated", False):
-        from app.sim.ds1 import run_ds1_simulator
+        from edge.sim.ds1 import run_ds1_simulator
 
         print("Starting DS1 simulator")
         thread = threading.Thread(target=run_ds1_simulator, args=(delay, callback, stop_event), daemon=True)
@@ -27,7 +27,7 @@ def run_ds1(settings, threads, stop_event, callback=None):
         print("DS1 simulator started")
     else:
         try:
-            from app.hw.ds1 import run_ds1_loop
+            from edge.hw.ds1 import run_ds1_loop
         except ImportError:
             print("RPi.GPIO not available; cannot start DS1 real loop.")
             return

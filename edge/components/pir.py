@@ -18,24 +18,22 @@ def run_pir(settings, threads, stop_event, callback=None):
     delay = settings.get("delay", 10.0)
 
     if settings.get("simulated", False):
-        from app.sim.pir import run_pir_simulator
+        from edge.sim.pir import run_pir_simulator
 
-        print("Starting DPIR1 simulator")
+        print("Starting PIR simulator")
         thread = threading.Thread(target=run_pir_simulator, args=(delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("DPIR1 simulator started")
+        print("PIR simulator started")
     else:
         try:
-            from app.hw.pir import run_pir_loop
+            from edge.hw.pir import run_pir_loop
         except ImportError:
-            print("RPi.GPIO not available; cannot start DPIR1 real loop.")
+            print("RPi.GPIO not available; cannot start PIR real loop.")
             return
 
-        print("Starting DPIR1 real loop")
-        thread = threading.Thread(
-            target=run_pir_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True
-        )
+        print("Starting PIR real loop")
+        thread = threading.Thread(target=run_pir_loop, args=(settings["pin"], delay, callback, stop_event), daemon=True)
         thread.start()
         threads.append(thread)
-        print("DPIR1 loop started")
+        print("PIR loop started")

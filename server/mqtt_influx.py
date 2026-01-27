@@ -20,7 +20,7 @@ except Exception:
     Point = None
     WritePrecision = None
 
-from app.config.settings import Config, load_config
+from config.settings import Config, load_config
 
 
 class MqttInfluxService:
