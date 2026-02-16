@@ -1,4 +1,12 @@
 import threading
+import json
+import os
+import urllib.request
+import threading
+from datetime import datetime, timezone
+from common.logging import get_logger as _get_logger
+from config.settings import load_config
+from edge.sim.dl import LedSimulator
 
 class DLController:
     def __init__(self, settings):
@@ -9,8 +17,6 @@ class DLController:
         self.state = bool(on)
         if self.settings and self.settings.get("simulated", False):
             try:
-                from edge.sim.dl import LedSimulator
-
                 LedSimulator.set_state(self.state)
             except Exception:
                 pass
@@ -29,14 +35,6 @@ class DLController:
         # (MQTT -> Influx -> Grafana) is notified of actuator changes.
         def _publish_actuator():
             try:
-                import json
-                import os
-                import urllib.request
-                import threading
-                from datetime import datetime, timezone
-                from common.logging import get_logger as _get_logger
-                from config.settings import load_config
-
                 cfg = load_config()
                 payload = {
                     "sensor_type": "DL",

@@ -1,3 +1,12 @@
+import threading
+import json
+import os
+import urllib.request
+from datetime import datetime, timezone
+from common.logging import get_logger as _get_logger
+from config.settings import load_config
+from edge.sim.db import BuzzerSimulator
+
 class DBController:
     def __init__(self, settings):
         self.settings = settings
@@ -7,8 +16,6 @@ class DBController:
         self.state = bool(on)
         if self.settings and self.settings.get("simulated", False):
             try:
-                from edge.sim.db import BuzzerSimulator
-
                 BuzzerSimulator.set_state(self.state)
             except Exception:
                 pass
@@ -27,14 +34,6 @@ class DBController:
         # (MQTT -> Influx -> Grafana) is notified of actuator changes.
         def _publish_actuator():
             try:
-                import json
-                import os
-                import urllib.request
-                import threading
-                from datetime import datetime, timezone
-                from common.logging import get_logger as _get_logger
-                from config.settings import load_config
-
                 cfg = load_config()
                 payload = {
                     "sensor_type": "DB",
