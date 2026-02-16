@@ -27,7 +27,7 @@
 
     "batch": {
         "enabled": true,
-        "mode": "global",            
+        "mode": "per_sensor",            
         "batch_size": 10,
         "max_interval_seconds": 5
     },
@@ -35,7 +35,7 @@
     "server": {
         "influx": {
             "url": "http://influxdb:8086",
-            "token": "OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ==",
+            "token": "YN6ivuyXkelTKgdb4UIuuVdVMr3KNB77_bZaS4peZJCuc-Uy1SdKlshxFJn1VUaEKJn6vqPKEMiNFmDgWYWvBg==",
             "org": "ftn",
             "bucket": "sensors",
             "actuator_bucket": "actuators"
