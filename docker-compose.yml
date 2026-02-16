@@ -1,0 +1,68 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - '1883:1883'
+      - '9001:9001'
+    volumes:
+      - ./docker/mosquitto/config:/mosquitto/config
+      - ./docker/mosquitto/data:/mosquitto/data
+      - ./docker/mosquitto/log:/mosquitto/log
+
+  influxdb:
+    image: influxdb:2.7
+    environment:
+      - INFLUXDB_INIT_MODE=setup
+      - INFLUXDB_INIT_USERNAME=admin
+      - INFLUXDB_INIT_PASSWORD=adminpass
+      - INFLUXDB_INIT_ORG=ftn
+      - INFLUXDB_INIT_BUCKET=sensors
+      - INFLUXDB_INIT_ADMIN_TOKEN=influx-token
+    ports:
+      - '8086:8086'
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_PANELS_DISABLE_SANITIZE_HTML=true
+    ports:
+      - '3000:3000'
+    depends_on:
+      - influxdb
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  app:
+    build: .
+    depends_on:
+      - mosquitto
+      - influxdb
+    environment:
+      - INFLUX_TOKEN=YN6ivuyXkelTKgdb4UIuuVdVMr3KNB77_bZaS4peZJCuc-Uy1SdKlshxFJn1VUaEKJn6vqPKEMiNFmDgWYWvBg==
+      - INFLUX_ORG=ftn
+      - INFLUX_BUCKET=sensors
+      - INFLUX_ACTUATOR_BUCKET=actuators
+      - MQTT_BROKER=mosquitto
+    command: ["python", "-m", "server.app"]
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./:/app:ro
+
+  device:
+    build: .
+    depends_on:
+      - mosquitto
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    command: ["python", "-m", "edge.main"]
+    volumes:
+      - ./:/app:ro
+
+volumes:
+  influxdb_data:
