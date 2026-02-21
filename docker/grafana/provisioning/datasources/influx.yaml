@@ -1,17 +1,14 @@
 apiVersion: 1
-providers:
-  - name: 'InfluxDB'
-    orgId: 1
-    folder: ''
+datasources:
+  - name: InfluxDB
     type: influxdb
-    typeLogoUrl: grafana-influxdb
     access: proxy
-    url: 'http://influxdb:8086'
-    basicAuth: false
+    url: http://influxdb:8086
     isDefault: true
     jsonData:
-      organization: "ftn"
-      defaultBucket: "sensors"
-      httpMode: "POST"
+      version: Flux
+      organization: ftn
+      defaultBucket: sensors
+      httpMode: POST
     secureJsonData:
-      token: "influx-token"
+      token: influx-token
