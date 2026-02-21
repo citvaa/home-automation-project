@@ -41,6 +41,9 @@ class SecurityState:
     arming_timer: Optional[threading.Timer] = None
     led_timer: Optional[threading.Timer] = None
     ds1_entry_timer: Optional[threading.Timer] = None
+    dms_digit_count: int = 0
+    dms_digits: List[int] = field(default_factory=list)
+    dms_digit_timer: Optional[threading.Timer] = None
 
 
 class MqttInfluxService:
@@ -442,6 +445,7 @@ class MqttInfluxService:
             state.ds1_entry_timer = None
         state.mode = "DISARMED"
         state.alarm_reason = None
+        self._reset_dms_pin(state)
         self._publish_buzzer(device_id, False)
         self._record_security_event(device_id, f"disarmed:{source}", state)
 
@@ -464,6 +468,54 @@ class MqttInfluxService:
         state.alarm_reason = reason
         self._publish_buzzer(device_id, True)
         self._record_security_event(device_id, f"alarm:{reason}", state)
+
+    def _reset_dms_pin(self, state: SecurityState):
+        state.dms_digit_count = 0
+        state.dms_digits = []
+        if state.dms_digit_timer:
+            try:
+                state.dms_digit_timer.cancel()
+            except Exception:
+                pass
+            state.dms_digit_timer = None
+
+    def _commit_dms_digit(self, device_id: str, state: SecurityState):
+        if state.dms_digit_count <= 0:
+            return
+        max_presses = self.cfg.security.dms_max_presses
+        count = min(state.dms_digit_count, max_presses)
+        digit = 0 if count == 10 else count
+        state.dms_digits.append(digit)
+        state.dms_digit_count = 0
+
+        if len(state.dms_digits) >= self.cfg.security.dms_pin_length:
+            pin_entered = "".join(str(d) for d in state.dms_digits[: self.cfg.security.dms_pin_length])
+            if pin_entered == self.cfg.security.pin:
+                self._record_security_event(device_id, "pin_ok:dms", state)
+                self._disarm(device_id, state, source="dms")
+            else:
+                self._record_security_event(device_id, "pin_fail:dms", state)
+            self._reset_dms_pin(state)
+
+    def _handle_dms_press(self, device_id: str, state: SecurityState):
+        # increment press count for current digit
+        state.dms_digit_count += 1
+
+        # restart digit timer
+        if state.dms_digit_timer:
+            try:
+                state.dms_digit_timer.cancel()
+            except Exception:
+                pass
+
+        def _timeout():
+            with self._security_lock:
+                st = self._get_security_state(device_id)
+                self._commit_dms_digit(device_id, st)
+
+        state.dms_digit_timer = threading.Timer(self.cfg.security.dms_digit_pause_seconds, _timeout)
+        state.dms_digit_timer.daemon = True
+        state.dms_digit_timer.start()
 
     def _publish_led(self, device_id: str, on: bool):
         payload = {
@@ -579,8 +631,12 @@ class MqttInfluxService:
 
             if sensor_type == "DMS":
                 pressed = self._is_truthy(value)
-                if pressed and state.last_dms_state is not True and state.mode == "DISARMED":
-                    self._start_arming(device_id, state, source="dms")
+                if pressed and state.last_dms_state is not True:
+                    if state.mode == "DISARMED":
+                        self._reset_dms_pin(state)
+                        self._start_arming(device_id, state, source="dms")
+                    else:
+                        self._handle_dms_press(device_id, state)
                 state.last_dms_state = pressed
 
     def _is_truthy(self, value: Any) -> bool:

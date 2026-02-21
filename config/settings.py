@@ -74,6 +74,9 @@ class SecurityConfig:
     pir_led_seconds: int = 10
     dus1_window_seconds: int = 5
     dus1_trend_delta_cm: float = 10.0
+    dms_digit_pause_seconds: int = 2
+    dms_pin_length: int = 4
+    dms_max_presses: int = 10
 
 
 @dataclass
