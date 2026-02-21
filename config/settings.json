@@ -21,7 +21,8 @@
             "DUS1": "sensors/{device_id}/dus1",
             "DB": "sensors/{device_id}/db",
             "DPIR1": "sensors/{device_id}/dpir1",
-            "DMS": "sensors/{device_id}/dms"
+            "DMS": "sensors/{device_id}/dms",
+            "WEBC": "sensors/{device_id}/webc"
         }
     },
 
@@ -63,5 +64,6 @@
     "DUS1": { "simulated": true, "trig": 23, "echo": 24, "delay": 2.0 },
     "DB":  { "simulated": true, "pin": 12 },
     "DPIR1": { "simulated": true, "delay": 10.0 },
-    "DMS": { "simulated": true, "pin": 18, "delay": 10.0 }
+    "DMS": { "simulated": true, "pin": 18, "delay": 10.0 },
+    "WEBC": { "simulated": true, "delay": 2.0, "frame_bytes": 512 }
 }

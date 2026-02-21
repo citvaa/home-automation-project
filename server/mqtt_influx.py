@@ -739,6 +739,7 @@ class MqttInfluxService:
             ("DPIR1", self.cfg.server.influx.bucket),
             ("DUS1", self.cfg.server.influx.bucket),
             ("DMS", self.cfg.server.influx.bucket),
+            ("WEBC", self.cfg.server.influx.bucket),
             ("DL", self.cfg.server.influx.actuator_bucket),
             ("DB", self.cfg.server.influx.actuator_bucket),
         ]

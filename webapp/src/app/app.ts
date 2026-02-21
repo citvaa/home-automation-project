@@ -4,7 +4,7 @@ import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angula
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription, catchError, interval, of, startWith, switchMap } from 'rxjs';
 
-type ElementKey = 'DS1' | 'DPIR1' | 'DUS1' | 'DMS' | 'DL' | 'DB';
+type ElementKey = 'DS1' | 'DPIR1' | 'DUS1' | 'DMS' | 'DL' | 'DB' | 'WEBC';
 
 interface ElementState {
   value: string | number | boolean | null;
@@ -127,6 +127,8 @@ export class App implements OnInit, OnDestroy {
           };
         });
 
+        this.cameraUrl = this.toCameraUrl(response.elements.WEBC ?? null);
+
         this.cdr.detectChanges();
       });
   }
@@ -225,6 +227,24 @@ export class App implements OnInit, OnDestroy {
     }
 
     return `${value}`;
+  }
+
+  private toCameraUrl(latest: ElementState | null): string {
+    if (!latest || latest.value === null || latest.value === undefined) {
+      return '';
+    }
+    if (typeof latest.value !== 'string') {
+      return '';
+    }
+    if (latest.value.startsWith('b64:')) {
+      const mime = latest.unit || 'image/jpeg';
+      const payload = latest.value.slice(4);
+      return `data:${mime};base64,${payload}`;
+    }
+    if (latest.value.startsWith('data:') || latest.value.startsWith('http')) {
+      return latest.value;
+    }
+    return '';
   }
 
   private formatTime(timestamp: string): string {
