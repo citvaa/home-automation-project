@@ -55,6 +55,30 @@ def actuator(device_id, actuator_type):
     return jsonify({"status": "published", "method": request.method}), 200
 
 
+@app.route("/security/<device_id>", methods=["GET"])
+def security_state(device_id):
+    try:
+        return jsonify(_svc.get_security_snapshot(device_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/security/<device_id>/arm", methods=["POST"])
+def security_arm(device_id):
+    payload = cast(Dict[str, Any], request.get_json() or {})
+    pin = str(payload.get("pin", ""))
+    res = _svc.arm_system(device_id, pin)
+    return jsonify(res), 200 if res.get("ok") else 400
+
+
+@app.route("/security/<device_id>/disarm", methods=["POST"])
+def security_disarm(device_id):
+    payload = cast(Dict[str, Any], request.get_json() or {})
+    pin = str(payload.get("pin", ""))
+    res = _svc.disarm_system(device_id, pin)
+    return jsonify(res), 200 if res.get("ok") else 400
+
+
 def start_service():
     _svc.start()
 

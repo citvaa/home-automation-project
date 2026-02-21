@@ -13,10 +13,17 @@ interface ElementState {
   bucket: string;
 }
 
+interface SecurityState {
+  mode: string;
+  occupancy: number;
+  alarm_reason: string | null;
+}
+
 interface StatusResponse {
   device_id: string;
   updated_at: string;
   elements: Partial<Record<ElementKey, ElementState | null>>;
+  security?: SecurityState;
 }
 
 interface UiElement {
@@ -49,6 +56,14 @@ export class App implements OnInit, OnDestroy {
   loading = true;
   errorMessage = '';
   updatedAt = '-';
+
+  securityMode = 'DISARMED';
+  alarmReason: string | null = null;
+  occupancy = 0;
+  pinInput = '';
+  pinError = '';
+  pinBusy = false;
+  cameraUrl = '';
 
   elements: UiElement[] = [
     { key: 'DS1', label: 'Door Sensor (DS1)', displayValue: 'N/A', unit: '', timestamp: '-' },
@@ -88,6 +103,17 @@ export class App implements OnInit, OnDestroy {
         this.errorMessage = '';
         this.updatedAt = this.formatTime(response.updated_at);
 
+        const security = response.security;
+        if (security) {
+          this.securityMode = security.mode || 'DISARMED';
+          this.occupancy = Number.isFinite(security.occupancy) ? security.occupancy : 0;
+          this.alarmReason = security.alarm_reason ?? null;
+        } else {
+          this.securityMode = 'DISARMED';
+          this.occupancy = 0;
+          this.alarmReason = null;
+        }
+
         this.elements = this.elements.map((element) => {
           const latest = response.elements[element.key] ?? null;
           if (!latest) {
@@ -112,6 +138,64 @@ export class App implements OnInit, OnDestroy {
     this.selectedDeviceId = deviceId;
     this.loading = true;
     this.errorMessage = '';
+  }
+
+  get alarmActive(): boolean {
+    return this.securityMode === 'ALARM';
+  }
+
+  armSystem(): void {
+    if (this.pinBusy) {
+      return;
+    }
+    this.pinBusy = true;
+    this.pinError = '';
+    this.http
+      .post<{ ok: boolean; error?: string }>(`${this.apiBase}/security/${this.selectedDeviceId}/arm`, {
+        pin: this.pinInput
+      })
+      .pipe(
+        catchError(() => {
+          this.pinError = 'Ne mogu da aktiviram sistem.';
+          return of({ ok: false, error: 'error' });
+        })
+      )
+      .subscribe((res) => {
+        this.pinBusy = false;
+        if (!res.ok) {
+          this.pinError = res.error || 'Neispravan PIN.';
+        } else {
+          this.pinInput = '';
+        }
+        this.cdr.detectChanges();
+      });
+  }
+
+  disarmSystem(): void {
+    if (this.pinBusy) {
+      return;
+    }
+    this.pinBusy = true;
+    this.pinError = '';
+    this.http
+      .post<{ ok: boolean; error?: string }>(`${this.apiBase}/security/${this.selectedDeviceId}/disarm`, {
+        pin: this.pinInput
+      })
+      .pipe(
+        catchError(() => {
+          this.pinError = 'Ne mogu da deaktiviram sistem.';
+          return of({ ok: false, error: 'error' });
+        })
+      )
+      .subscribe((res) => {
+        this.pinBusy = false;
+        if (!res.ok) {
+          this.pinError = res.error || 'Neispravan PIN.';
+        } else {
+          this.pinInput = '';
+        }
+        this.cdr.detectChanges();
+      });
   }
 
   ngOnDestroy(): void {

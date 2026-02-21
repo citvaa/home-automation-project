@@ -3,8 +3,10 @@ import queue
 import threading
 import time
 import re
+from collections import deque
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Deque, Dict, List, Optional, Tuple, cast
 
 try:
     import paho.mqtt.client as mqtt
@@ -26,6 +28,19 @@ logger = get_logger(__name__)
 
 from config.settings import Config, load_config
 from server.utils import normalize_value, parse_timestamp
+
+
+@dataclass
+class SecurityState:
+    mode: str = "DISARMED"  # DISARMED | ARMING | ARMED | ALARM
+    occupancy: int = 0
+    alarm_reason: Optional[str] = None
+    ds1_active_since: Optional[datetime] = None
+    dus1_history: Deque[Tuple[datetime, float]] = field(default_factory=deque)
+    last_dms_state: Optional[bool] = None
+    arming_timer: Optional[threading.Timer] = None
+    led_timer: Optional[threading.Timer] = None
+    ds1_entry_timer: Optional[threading.Timer] = None
 
 
 class MqttInfluxService:
@@ -66,6 +81,10 @@ class MqttInfluxService:
         self._max_queue_size_warn = 500
         self._publish_timeout_warning = 2.0  # seconds
         self._write_timeout_warning = 2.0  # seconds (log if write takes longer)    
+
+        # security state tracking (per device)
+        self._security_lock = threading.Lock()
+        self._security_states: Dict[str, SecurityState] = {}
 
     def start(self):
         # setup influx client
@@ -188,12 +207,22 @@ class MqttInfluxService:
                 # Expand if envelope with 'readings'
                 if isinstance(data, dict) and "readings" in data and isinstance(data["readings"], list):
                     for r in data["readings"]:
+                        try:
+                            if isinstance(r, dict):
+                                self._process_security_reading(r)
+                        except Exception:
+                            logger.debug("security processing failed for reading", exc_info=True)
                         entry = {
                             "topic": topic,
                             "payload": r,
                         }
                         buffer.append(entry)
                 else:
+                    try:
+                        if isinstance(data, dict):
+                            self._process_security_reading(data)
+                    except Exception:
+                        logger.debug("security processing failed for message", exc_info=True)
                     buffer.append({"topic": topic, "payload": data})
 
                 if len(buffer) >= self._batch_size:
@@ -323,6 +352,246 @@ class MqttInfluxService:
         except Exception as e:
             logger.exception("write error: %s", e)
 
+    def _get_security_state(self, device_id: str) -> SecurityState:
+        state = self._security_states.get(device_id)
+        if state is None:
+            state = SecurityState()
+            self._security_states[device_id] = state
+        return state
+
+    def _security_snapshot(self, state: SecurityState) -> Dict[str, Any]:
+        return {
+            "mode": state.mode,
+            "occupancy": state.occupancy,
+            "alarm_reason": state.alarm_reason,
+        }
+
+    def get_security_snapshot(self, device_id: str) -> Dict[str, Any]:
+        with self._security_lock:
+            state = self._get_security_state(device_id)
+            return self._security_snapshot(state)
+
+    def arm_system(self, device_id: str, pin: str) -> Dict[str, Any]:
+        if pin != self.cfg.security.pin:
+            return {"ok": False, "error": "Invalid PIN"}
+        with self._security_lock:
+            state = self._get_security_state(device_id)
+            if state.mode in ("ARMING", "ARMED"):
+                return {"ok": True, "state": state.mode}
+            self._start_arming(device_id, state, source="web")
+            return {"ok": True, "state": state.mode}
+
+    def disarm_system(self, device_id: str, pin: str) -> Dict[str, Any]:
+        if pin != self.cfg.security.pin:
+            return {"ok": False, "error": "Invalid PIN"}
+        with self._security_lock:
+            state = self._get_security_state(device_id)
+            self._disarm(device_id, state, source="web")
+            return {"ok": True, "state": state.mode}
+
+    def _record_security_event(self, device_id: str, event_type: str, state: SecurityState):
+        if self._write_api is None or Point is None:
+            return
+        try:
+            p = Point("security_events")
+            p.tag("device_id", device_id)
+            p.field("event", event_type)
+            p.field("state", state.mode)
+            p.field("occupancy", int(state.occupancy))
+            if state.alarm_reason:
+                p.field("alarm_reason", state.alarm_reason)
+            p.time(datetime.now(timezone.utc), WritePrecision.NS)
+            self._write_api.write(bucket=self.cfg.server.influx.bucket, record=p)
+        except Exception:
+            logger.debug("security event write failed", exc_info=True)
+
+    def _start_arming(self, device_id: str, state: SecurityState, source: str):
+        state.mode = "ARMING"
+        state.alarm_reason = None
+        self._record_security_event(device_id, f"arming_started:{source}", state)
+
+        if state.arming_timer:
+            try:
+                state.arming_timer.cancel()
+            except Exception:
+                pass
+
+        def _finish():
+            with self._security_lock:
+                st = self._get_security_state(device_id)
+                if st.mode == "ARMING":
+                    st.mode = "ARMED"
+                    self._record_security_event(device_id, "armed", st)
+
+        state.arming_timer = threading.Timer(self.cfg.security.arming_delay_seconds, _finish)
+        state.arming_timer.daemon = True
+        state.arming_timer.start()
+
+    def _disarm(self, device_id: str, state: SecurityState, source: str):
+        if state.arming_timer:
+            try:
+                state.arming_timer.cancel()
+            except Exception:
+                pass
+            state.arming_timer = None
+        if state.ds1_entry_timer:
+            try:
+                state.ds1_entry_timer.cancel()
+            except Exception:
+                pass
+            state.ds1_entry_timer = None
+        state.mode = "DISARMED"
+        state.alarm_reason = None
+        self._publish_buzzer(device_id, False)
+        self._record_security_event(device_id, f"disarmed:{source}", state)
+
+    def _set_alarm(self, device_id: str, state: SecurityState, reason: str):
+        if state.mode == "ALARM":
+            return
+        if state.arming_timer:
+            try:
+                state.arming_timer.cancel()
+            except Exception:
+                pass
+            state.arming_timer = None
+        if state.ds1_entry_timer:
+            try:
+                state.ds1_entry_timer.cancel()
+            except Exception:
+                pass
+            state.ds1_entry_timer = None
+        state.mode = "ALARM"
+        state.alarm_reason = reason
+        self._publish_buzzer(device_id, True)
+        self._record_security_event(device_id, f"alarm:{reason}", state)
+
+    def _publish_led(self, device_id: str, on: bool):
+        payload = {
+            "sensor_type": "DL",
+            "state": "on" if on else "off",
+            "value": bool(on),
+            "device_id": device_id,
+            "source": "server",
+        }
+        self.publish_actuator("led", payload, device_id=device_id)
+
+    def _publish_buzzer(self, device_id: str, on: bool):
+        payload = {
+            "sensor_type": "DB",
+            "state": "on" if on else "off",
+            "value": bool(on),
+            "device_id": device_id,
+            "source": "server",
+        }
+        self.publish_actuator("buzzer", payload, device_id=device_id)
+
+    def _handle_motion(self, device_id: str, state: SecurityState, timestamp: datetime):
+        # Turn on LED for a short period
+        self._publish_led(device_id, True)
+        if state.led_timer:
+            try:
+                state.led_timer.cancel()
+            except Exception:
+                pass
+        state.led_timer = threading.Timer(self.cfg.security.pir_led_seconds, self._publish_led, args=(device_id, False))
+        state.led_timer.daemon = True
+        state.led_timer.start()
+
+        # Determine entry/exit from recent DUS1 data
+        self._trim_dus1_history(state, timestamp)
+        history = list(state.dus1_history)
+        if len(history) >= 2:
+            first_dist = history[0][1]
+            last_dist = history[-1][1]
+            delta = last_dist - first_dist
+            if delta <= -self.cfg.security.dus1_trend_delta_cm:
+                state.occupancy += 1
+                self._record_security_event(device_id, "entry", state)
+            elif delta >= self.cfg.security.dus1_trend_delta_cm:
+                if state.occupancy > 0:
+                    state.occupancy -= 1
+                self._record_security_event(device_id, "exit", state)
+
+        if state.mode in ("ARMED", "ARMING") and state.occupancy == 0:
+            self._set_alarm(device_id, state, "motion_empty")
+
+    def _start_entry_delay(self, device_id: str, state: SecurityState):
+        self._record_security_event(device_id, "entry_delay_started", state)
+
+        def _timeout():
+            with self._security_lock:
+                st = self._get_security_state(device_id)
+                if st.mode == "ARMED":
+                    self._set_alarm(device_id, st, "entry_delay_timeout")
+
+        state.ds1_entry_timer = threading.Timer(self.cfg.security.entry_delay_seconds, _timeout)
+        state.ds1_entry_timer.daemon = True
+        state.ds1_entry_timer.start()
+
+    def _trim_dus1_history(self, state: SecurityState, now: datetime):
+        window = self.cfg.security.dus1_window_seconds
+        while state.dus1_history and (now - state.dus1_history[0][0]).total_seconds() > window:
+            state.dus1_history.popleft()
+
+    def _process_security_reading(self, payload: Dict[str, Any]):
+        sensor_type = payload.get("sensor_type")
+        if not sensor_type:
+            return
+        device_id = payload.get("device_id") or self.cfg.device.id
+        ts = parse_timestamp(payload.get("timestamp")) or datetime.now(timezone.utc)
+        value, _ = normalize_value(payload.get("value"), payload.get("unit"))
+
+        with self._security_lock:
+            state = self._get_security_state(device_id)
+
+            if sensor_type == "DUS1":
+                if isinstance(value, (int, float)):
+                    state.dus1_history.append((ts, float(value)))
+                    self._trim_dus1_history(state, ts)
+                return
+
+            if sensor_type == "DS1":
+                active = self._is_truthy(value)
+                if active:
+                    if state.ds1_active_since is None:
+                        state.ds1_active_since = ts
+                        if state.mode == "ARMED" and state.ds1_entry_timer is None:
+                            self._start_entry_delay(device_id, state)
+                    else:
+                        dur = (ts - state.ds1_active_since).total_seconds()
+                        if dur >= self.cfg.security.door_open_seconds:
+                            self._set_alarm(device_id, state, "door_open")
+                else:
+                    state.ds1_active_since = None
+                    if state.ds1_entry_timer:
+                        try:
+                            state.ds1_entry_timer.cancel()
+                        except Exception:
+                            pass
+                        state.ds1_entry_timer = None
+                        self._record_security_event(device_id, "entry_delay_cancelled", state)
+                return
+
+            if sensor_type == "DPIR1":
+                if self._is_truthy(value):
+                    self._handle_motion(device_id, state, ts)
+                return
+
+            if sensor_type == "DMS":
+                pressed = self._is_truthy(value)
+                if pressed and state.last_dms_state is not True and state.mode == "DISARMED":
+                    self._start_arming(device_id, state, source="dms")
+                state.last_dms_state = pressed
+
+    def _is_truthy(self, value: Any) -> bool:
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "on", "pressed")
+        return False
+
     def _get_bucket_for_topic(self, topic: str) -> str:
         if topic.startswith("actuators/"):
             return self.cfg.server.influx.actuator_bucket
@@ -394,6 +663,7 @@ class MqttInfluxService:
             "device_id": device_id,
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "elements": elements,
+            "security": self.get_security_snapshot(device_id),
         }
 
     # Helper to publish actuator messages

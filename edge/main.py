@@ -18,6 +18,7 @@ from edge.components.dms import run_dms
 from edge.components.dl import DLController
 from edge.components.db import DBController
 from edge.components.mqtt_publisher import BatchPublisher
+from edge.components.mqtt_subscriber import ActuatorSubscriber
 
 # RPi.GPIO is optional (not needed for simulation)
 try:
@@ -187,6 +188,7 @@ if __name__ == "__main__":
     cfg = load_config()
     threads = []
     stop_event = threading.Event()
+    actuator_sub = None
 
     # Start publisher
     publisher = BatchPublisher(cfg)
@@ -200,6 +202,9 @@ if __name__ == "__main__":
 
         led_ctrl = DLController(raw_settings.get("DL"))
         buzzer_ctrl = DBController(raw_settings.get("DB"))
+
+        actuator_sub = ActuatorSubscriber(cfg, led_ctrl=led_ctrl, buzzer_ctrl=buzzer_ctrl)
+        actuator_sub.start()
 
         # Start command loop for actuators in a separate thread
         cmd_thread = threading.Thread(target=command_loop, args=(stop_event, led_ctrl, buzzer_ctrl), daemon=True)
@@ -219,5 +224,10 @@ if __name__ == "__main__":
             publisher.stop()
         except Exception:
             pass
+        if actuator_sub is not None:
+            try:
+                actuator_sub.stop()
+            except Exception:
+                pass
         for t in threads:
             t.join(timeout=1)

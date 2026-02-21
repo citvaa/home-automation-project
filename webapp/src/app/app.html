@@ -22,6 +22,46 @@
     <p class="error">{{ errorMessage }}</p>
   }
 
+  <section class="security-section">
+    <div class="security-header">
+      <h2>Security</h2>
+      @if (alarmActive) {
+        <span class="alarm-badge">ALARM</span>
+      }
+    </div>
+    <div class="security-grid">
+      <div class="security-card">
+        <p class="security-label">State</p>
+        <p class="security-value">{{ securityMode }}</p>
+        <p class="security-label">Occupancy</p>
+        <p class="security-value">{{ occupancy }}</p>
+        @if (alarmReason) {
+          <p class="security-label">Reason</p>
+          <p class="security-value">{{ alarmReason }}</p>
+        }
+      </div>
+      <div class="security-actions">
+        <label class="pin-input">
+          PIN
+          <input
+            type="password"
+            maxlength="4"
+            [value]="pinInput"
+            (input)="pinInput = $any($event.target).value"
+            placeholder="1234"
+          />
+        </label>
+        <div class="security-buttons">
+          <button class="btn" (click)="armSystem()" [disabled]="pinBusy">Arm</button>
+          <button class="btn secondary" (click)="disarmSystem()" [disabled]="pinBusy">Disarm</button>
+        </div>
+        @if (pinError) {
+          <p class="error">{{ pinError }}</p>
+        }
+      </div>
+    </div>
+  </section>
+
   <section class="status-grid">
     @for (element of elements; track element.key) {
       <article class="card">
@@ -40,5 +80,14 @@
       loading="lazy"
       referrerpolicy="no-referrer"
     ></iframe>
+  </section>
+
+  <section class="camera-section">
+    <h2>Web Camera</h2>
+    @if (cameraUrl) {
+      <img [src]="cameraUrl" alt="Web camera stream" />
+    } @else {
+      <div class="camera-placeholder">Camera stream not configured.</div>
+    }
   </section>
 </main>
