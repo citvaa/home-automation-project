@@ -151,7 +151,7 @@
         "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}
       },
       "targets": [
-        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DB\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
+        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DB\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> group(columns: [\"_measurement\", \"device_id\"]) |> last()"}
       ]
     },
     {
