@@ -28,6 +28,20 @@
   color: #c9c9c9;
 }
 
+.device-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-select select {
+  background: #1d1d1d;
+  color: #e6e6e6;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
 .info {
   margin: 0 0 12px;
 }

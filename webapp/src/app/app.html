@@ -2,7 +2,14 @@
   <header class="header">
     <h1>Home Automation Dashboard</h1>
     <div class="meta">
-      <span>Device: {{ deviceId }}</span>
+      <label class="device-select">
+        Device:
+        <select [value]="selectedDeviceId" (change)="onDeviceChange($any($event.target).value)">
+          @for (device of devices; track device) {
+            <option [value]="device">{{ device }}</option>
+          }
+        </select>
+      </label>
       <span>Last refresh: {{ updatedAt }}</span>
     </div>
   </header>

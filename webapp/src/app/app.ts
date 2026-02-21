@@ -42,7 +42,8 @@ export class App implements OnInit, OnDestroy {
 
   readonly apiBase = 'http://localhost:5000';
   readonly grafanaBase = 'http://localhost:3000';
-  readonly deviceId = 'PI1';
+  readonly devices = ['PI1', 'PI2', 'PI3'];
+  selectedDeviceId = 'PI1';
   readonly grafanaUrl: SafeResourceUrl;
 
   loading = true;
@@ -69,7 +70,7 @@ export class App implements OnInit, OnDestroy {
       .pipe(
         startWith(0),
         switchMap(() =>
-          this.http.get<StatusResponse>(`${this.apiBase}/status/${this.deviceId}`).pipe(
+          this.http.get<StatusResponse>(`${this.apiBase}/status/${this.selectedDeviceId}`).pipe(
             catchError(() => {
               this.errorMessage = 'Ne mogu da učitam stanje uređaja sa servera.';
               return of(null);
@@ -102,6 +103,15 @@ export class App implements OnInit, OnDestroy {
 
         this.cdr.detectChanges();
       });
+  }
+
+  onDeviceChange(deviceId: string): void {
+    if (!deviceId || this.selectedDeviceId === deviceId) {
+      return;
+    }
+    this.selectedDeviceId = deviceId;
+    this.loading = true;
+    this.errorMessage = '';
   }
 
   ngOnDestroy(): void {
