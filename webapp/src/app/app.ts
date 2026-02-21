@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription, catchError, interval, of, startWith, switchMap } from 'rxjs';
 
@@ -36,6 +36,7 @@ interface UiElement {
 export class App implements OnInit, OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly sanitizer = inject(DomSanitizer);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   private pollSub?: Subscription;
 
@@ -79,6 +80,7 @@ export class App implements OnInit, OnDestroy {
       .subscribe((response) => {
         this.loading = false;
         if (!response) {
+          this.cdr.detectChanges();
           return;
         }
 
@@ -97,6 +99,8 @@ export class App implements OnInit, OnDestroy {
             timestamp: latest.timestamp ? this.formatTime(latest.timestamp) : '-'
           };
         });
+
+        this.cdr.detectChanges();
       });
   }
 
