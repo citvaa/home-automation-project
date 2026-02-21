@@ -52,16 +52,16 @@
         "door_open_seconds": 5,
         "pir_led_seconds": 10,
         "dus1_window_seconds": 5,
-        "dus1_trend_delta_cm": 10.0,
+        "dus1_trend_delta_cm": 5.0,
         "dms_digit_pause_seconds": 2,
         "dms_pin_length": 4,
         "dms_max_presses": 10
     },
 
-    "DS1": { "simulated": true, "pin": 5, "delay": 10.0 },
+    "DS1": { "simulated": true, "delay": 10.0 },
     "DL":  { "simulated": true, "pin": 6 },
-    "DUS1": { "simulated": true, "trig": 23, "echo": 24, "delay": 10.0 },
+    "DUS1": { "simulated": true, "trig": 23, "echo": 24, "delay": 2.0 },
     "DB":  { "simulated": true, "pin": 12 },
-    "DPIR1": { "simulated": true, "pin": 16, "delay": 10.0 },
+    "DPIR1": { "simulated": true, "delay": 10.0 },
     "DMS": { "simulated": true, "pin": 18, "delay": 10.0 }
 }

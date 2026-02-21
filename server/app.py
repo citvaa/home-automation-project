@@ -11,6 +11,20 @@ cfg = load_config()
 # Create a single service instance
 _svc = MqttInfluxService(cfg)
 
+# Start the service when Flask initializes (works in both direct and container execution)
+@app.before_request
+def _start_service_once():
+    # Use a flag to ensure we only start once
+    if not hasattr(_start_service_once, '_started'):
+        try:
+            print("Starting MqttInfluxService...")
+            _svc.start()
+            print("MqttInfluxService started successfully!")
+            _start_service_once._started = True
+        except Exception as e:
+            print(f"ERROR starting MqttInfluxService: {e}", flush=True)
+            raise
+
 
 @app.after_request
 def add_cors_headers(response):

@@ -115,9 +115,12 @@ class MqttInfluxService:
             self._mqtt_client.on_message = self._on_message
 
             try:
+                print(f"[MQTT] Attempting to connect to {self.cfg.mqtt.broker}:{self.cfg.mqtt.port}...")
                 self._mqtt_client.connect(self.cfg.mqtt.broker, self.cfg.mqtt.port)
                 self._mqtt_client.loop_start()
+                print(f"[MQTT] loop_start() called - waiting for connection callback...")
             except Exception as e:
+                print(f"[MQTT] *** CONNECTION FAILED: {e} ***")
                 logger.warning("MQTT connect failed: %s", e)
         else:
             # user provided client must have on_message attribute set or we set ours
@@ -179,9 +182,11 @@ class MqttInfluxService:
 
     # MQTT callbacks
     def _on_connect(self, client, userdata, flags, rc):
+        print(f"[MQTT] *** CONNECTED (rc={rc}) ***")
         logger.info("MQTT connected (rc=%s)", rc)
         for topic in self.cfg.server.subscribe_topics:
             client.subscribe(topic)
+            print(f"[MQTT] Subscribed to {topic}")
             logger.info("subscribed to %s", topic)
 
     def _on_message(self, client, userdata, msg):
@@ -193,6 +198,8 @@ class MqttInfluxService:
             return
         # log received message for debugging
         try:
+            sensor_type = data.get("sensor_type", "?")
+            print(f"[MQTT] Received {sensor_type} on {msg.topic}")
             logger.debug("received message on %s: %s", msg.topic, data)
         except Exception:
             pass
@@ -425,6 +432,10 @@ class MqttInfluxService:
                 if st.mode == "ARMING":
                     st.mode = "ARMED"
                     self._record_security_event(device_id, "armed", st)
+                    # If the door is already open, start entry-delay now and reset the active timestamp
+                    if st.ds1_active_since is not None and st.ds1_entry_timer is None:
+                        st.ds1_active_since = datetime.now(timezone.utc)
+                        self._start_entry_delay(device_id, st)
 
         state.arming_timer = threading.Timer(self.cfg.security.arming_delay_seconds, _finish)
         state.arming_timer.daemon = True
@@ -450,7 +461,9 @@ class MqttInfluxService:
         self._record_security_event(device_id, f"disarmed:{source}", state)
 
     def _set_alarm(self, device_id: str, state: SecurityState, reason: str):
+        print(f"[ALARM] _set_alarm called: device={device_id}, reason={reason}, current_mode={state.mode}")
         if state.mode == "ALARM":
+            print(f"[ALARM] Already in ALARM mode, returning")
             return
         if state.arming_timer:
             try:
@@ -466,8 +479,10 @@ class MqttInfluxService:
             state.ds1_entry_timer = None
         state.mode = "ALARM"
         state.alarm_reason = reason
+        print(f"[ALARM] State updated: mode={state.mode}, reason={state.alarm_reason}")
         self._publish_buzzer(device_id, True)
         self._record_security_event(device_id, f"alarm:{reason}", state)
+        print(f"[ALARM] Alarm event recorded and buzzer activated")
 
     def _reset_dms_pin(self, state: SecurityState):
         state.dms_digit_count = 0
@@ -564,21 +579,27 @@ class MqttInfluxService:
                     state.occupancy -= 1
                 self._record_security_event(device_id, "exit", state)
 
-        if state.mode in ("ARMED", "ARMING") and state.occupancy == 0:
+        if state.mode in ("ARMED",) and state.occupancy == 0:
             self._set_alarm(device_id, state, "motion_empty")
 
     def _start_entry_delay(self, device_id: str, state: SecurityState):
         self._record_security_event(device_id, "entry_delay_started", state)
 
         def _timeout():
+            print(f"[ENTRY_DELAY] *** TIMEOUT CALLBACK FIRED for {device_id} ***")
             with self._security_lock:
                 st = self._get_security_state(device_id)
+                print(f"[ENTRY_DELAY] Current state in callback: mode={st.mode}, alarm_reason={st.alarm_reason}")
                 if st.mode == "ARMED":
+                    print(f"[ENTRY_DELAY] Mode is ARMED, triggering entry_delay_timeout alarm")
                     self._set_alarm(device_id, st, "entry_delay_timeout")
+                else:
+                    print(f"[ENTRY_DELAY] Mode is {st.mode}, NOT triggering alarm")
 
         state.ds1_entry_timer = threading.Timer(self.cfg.security.entry_delay_seconds, _timeout)
         state.ds1_entry_timer.daemon = True
         state.ds1_entry_timer.start()
+        print(f"[ENTRY_DELAY] Timer scheduled for {self.cfg.security.entry_delay_seconds}s (callback will fire in background)")
 
     def _trim_dus1_history(self, state: SecurityState, now: datetime):
         window = self.cfg.security.dus1_window_seconds
@@ -604,16 +625,28 @@ class MqttInfluxService:
 
             if sensor_type == "DS1":
                 active = self._is_truthy(value)
+                print(f"[DS1] Received value={value}, active={active}, current_mode={state.mode}, ds1_active_since={state.ds1_active_since}")
                 if active:
                     if state.ds1_active_since is None:
                         state.ds1_active_since = ts
+                        print(f"[DS1] *** DS1 became ACTIVE at {ts}, starting checks ***")
                         if state.mode == "ARMED" and state.ds1_entry_timer is None:
+                            print(f"[DS1] Mode is ARMED and no timer running → STARTING ENTRY_DELAY TIMER")
                             self._start_entry_delay(device_id, state)
+                        else:
+                            print(f"[DS1] Not starting timer: mode={state.mode}, timer_is_None={state.ds1_entry_timer is None}")
                     else:
                         dur = (ts - state.ds1_active_since).total_seconds()
-                        if dur >= self.cfg.security.door_open_seconds:
+                        print(f"[DS1] DS1 still active for {dur:.1f}s (threshold={self.cfg.security.door_open_seconds}s)")
+                        if (
+                            state.mode == "ARMED"
+                            and state.ds1_entry_timer is None
+                            and dur >= self.cfg.security.door_open_seconds
+                        ):
+                            print(f"[DS1] *** DURATION THRESHOLD MET ({dur:.1f}s >= {self.cfg.security.door_open_seconds}s) → TRIGGERING DOOR_OPEN ***")
                             self._set_alarm(device_id, state, "door_open")
                 else:
+                    print(f"[DS1] *** DS1 became INACTIVE ***")
                     state.ds1_active_since = None
                     if state.ds1_entry_timer:
                         try:
