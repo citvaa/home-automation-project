@@ -29,7 +29,8 @@
         "overrides": []
       },
       "options": {
-        "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}
+        "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""},
+        "textMode": "value"
       },
       "targets": [
         {
@@ -105,7 +106,7 @@
         "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}
       },
       "targets": [
-        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DL\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
+        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DL\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> group() |> sort(columns: [\"_time\"], desc: true) |> limit(n: 1)"}
       ]
     },
     {
@@ -168,16 +169,6 @@
       "targets": [
         {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DMS\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
       ]
-    },
-    {
-      "title": "Actuator Control",
-      "type": "text",
-      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 12},
-      "id": 3,
-      "options": {
-        "mode": "html",
-        "content": "<div style=\"padding:10px;display:flex;gap:8px;align-items:center;\">\n<iframe name=\"actuator-target\" style=\"display:none;\"></iframe>\n<form action=\"http://localhost:5000/actuator/PI1/led\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"on\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">LED ON</button>\n</form>\n<form action=\"http://localhost:5000/actuator/PI1/led\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"off\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">LED OFF</button>\n</form>\n<form action=\"http://localhost:5000/actuator/PI1/buzzer\" method=\"get\" target=\"actuator-target\" style=\"margin:0;\">\n  <input type=\"hidden\" name=\"state\" value=\"on\" />\n  <button style=\"padding:8px 12px;\" type=\"submit\">BUZZER ON</button>\n</form>\n</div>"
-      }
     }
   ],
   "refresh": "5s",
@@ -191,13 +182,6 @@
       "label": "Device",
       "query": "PI1",
       "current": {"text": "PI1", "value": "PI1"}
-    },
-    {
-      "type": "custom",
-      "name": "actuator_type",
-      "label": "Actuator",
-      "query": "led,buzzer",
-      "current": {"text": "led", "value": "led"}
     }
   ]},
   "time": {"from": "now-1h", "to": "now"},
