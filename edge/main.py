@@ -15,9 +15,11 @@ from edge.components.ds1 import run_ds1
 from edge.components.pir import run_pir
 from edge.components.dus1 import run_dus1
 from edge.components.dms import run_dms
+from edge.components.webc import run_webc
 from edge.components.dl import DLController
 from edge.components.db import DBController
 from edge.components.mqtt_publisher import BatchPublisher
+from edge.components.mqtt_subscriber import ActuatorSubscriber
 
 # RPi.GPIO is optional (not needed for simulation)
 try:
@@ -126,6 +128,36 @@ def start_dms(settings, threads, stop_event, publisher: Optional[BatchPublisher]
     run_dms(settings, threads, stop_event, callback=cb)
 
 
+def start_webc(settings, threads, stop_event, publisher: Optional[BatchPublisher] = None, device_id: Optional[str] = None, device_name: Optional[str] = None):
+    if settings is None:
+        return
+
+    def cb(payload):
+        from common.logging import get_logger
+        logger = get_logger(__name__)
+        t = time.strftime("%H:%M:%S", time.localtime())
+        if isinstance(payload, dict):
+            mime = payload.get("mime", "image/jpeg")
+            data = payload.get("data")
+        else:
+            mime = "image/jpeg"
+            data = payload
+        logger.info("[WEBC Camera] %s frame captured", t)
+        if publisher:
+            reading = {
+                "sensor_type": "WEBC",
+                "value": data,
+                "unit": mime,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "simulated": settings.get("simulated", False),
+                "device_id": device_id,
+                "device_name": device_name,
+            }
+            publisher.enqueue_reading(reading)
+
+    run_webc(settings, threads, stop_event, callback=cb)
+
+
 def command_loop(stop_event, led_ctrl=None, buzzer_ctrl=None):
     """
     Console loop for actuator control (LED, buzzer).
@@ -187,6 +219,7 @@ if __name__ == "__main__":
     cfg = load_config()
     threads = []
     stop_event = threading.Event()
+    actuator_sub = None
 
     # Start publisher
     publisher = BatchPublisher(cfg)
@@ -197,9 +230,13 @@ if __name__ == "__main__":
         start_pir(raw_settings.get("DPIR1"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
         start_dus1(raw_settings.get("DUS1"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
         start_dms(raw_settings.get("DMS"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
+        start_webc(raw_settings.get("WEBC"), threads, stop_event, publisher=publisher, device_id=cfg.device.id, device_name=cfg.device.name)
 
         led_ctrl = DLController(raw_settings.get("DL"))
         buzzer_ctrl = DBController(raw_settings.get("DB"))
+
+        actuator_sub = ActuatorSubscriber(cfg, led_ctrl=led_ctrl, buzzer_ctrl=buzzer_ctrl)
+        actuator_sub.start()
 
         # Start command loop for actuators in a separate thread
         cmd_thread = threading.Thread(target=command_loop, args=(stop_event, led_ctrl, buzzer_ctrl), daemon=True)
@@ -219,5 +256,10 @@ if __name__ == "__main__":
             publisher.stop()
         except Exception:
             pass
+        if actuator_sub is not None:
+            try:
+                actuator_sub.stop()
+            except Exception:
+                pass
         for t in threads:
             t.join(timeout=1)

@@ -11,6 +11,20 @@ cfg = load_config()
 # Create a single service instance
 _svc = MqttInfluxService(cfg)
 
+# Start the service when Flask initializes (works in both direct and container execution)
+@app.before_request
+def _start_service_once():
+    # Use a flag to ensure we only start once
+    if not hasattr(_start_service_once, '_started'):
+        try:
+            print("Starting MqttInfluxService...")
+            _svc.start()
+            print("MqttInfluxService started successfully!")
+            _start_service_once._started = True
+        except Exception as e:
+            print(f"ERROR starting MqttInfluxService: {e}", flush=True)
+            raise
+
 
 @app.after_request
 def add_cors_headers(response):
@@ -53,6 +67,30 @@ def actuator(device_id, actuator_type):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"status": "published", "method": request.method}), 200
+
+
+@app.route("/security/<device_id>", methods=["GET"])
+def security_state(device_id):
+    try:
+        return jsonify(_svc.get_security_snapshot(device_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/security/<device_id>/arm", methods=["POST"])
+def security_arm(device_id):
+    payload = cast(Dict[str, Any], request.get_json() or {})
+    pin = str(payload.get("pin", ""))
+    res = _svc.arm_system(device_id, pin)
+    return jsonify(res), 200 if res.get("ok") else 400
+
+
+@app.route("/security/<device_id>/disarm", methods=["POST"])
+def security_disarm(device_id):
+    payload = cast(Dict[str, Any], request.get_json() or {})
+    pin = str(payload.get("pin", ""))
+    res = _svc.disarm_system(device_id, pin)
+    return jsonify(res), 200 if res.get("ok") else 400
 
 
 def start_service():

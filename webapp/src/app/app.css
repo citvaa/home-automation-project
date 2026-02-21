@@ -58,6 +58,104 @@
   margin-bottom: 20px;
 }
 
+.security-section {
+  border: 1px solid #3a3a3a;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+  background: #171717;
+}
+
+.security-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.alarm-badge {
+  background: #ff4d4d;
+  color: #fff;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.security-card {
+  background: #1d1d1d;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.security-label {
+  margin: 0;
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+.security-value {
+  margin: 4px 0 10px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.security-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #1d1d1d;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.pin-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: #9a9a9a;
+}
+
+.pin-input input {
+  background: #101010;
+  color: #f1f1f1;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.security-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  background: #2c6bed;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.btn.secondary {
+  background: #444;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .card {
   border: 1px solid #3a3a3a;
   border-radius: 8px;
@@ -99,5 +197,26 @@
   min-height: 720px;
   border: 1px solid #3a3a3a;
   border-radius: 8px;
+  background: #111;
+}
+
+.camera-section {
+  margin-top: 20px;
+}
+
+.camera-section img {
+  width: 100%;
+  min-height: 320px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #3a3a3a;
+}
+
+.camera-placeholder {
+  border: 1px dashed #3a3a3a;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #9a9a9a;
   background: #111;
 }

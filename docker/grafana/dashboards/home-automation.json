@@ -1,7 +1,18 @@
 {
   "uid": "home-automation",
   "title": "Home Automation",
-  "annotations": {"list": []},
+  "annotations": {
+    "list": [
+      {
+        "name": "Security Events",
+        "datasource": "InfluxDB",
+        "enable": true,
+        "iconColor": "rgba(255, 99, 132, 1)",
+        "query": "from(bucket:\"sensors\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"security_events\" and r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"event\")",
+        "type": "tags"
+      }
+    ]
+  },
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
@@ -35,7 +46,7 @@
       "targets": [
         {
           "refId": "A",
-          "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\" and r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"
+          "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DS1\" and r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> group() |> last()"
         }
       ]
     },
@@ -72,7 +83,7 @@
         "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}
       },
       "targets": [
-        {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DPIR1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
+        {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DPIR1\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> group() |> last()"}
       ]
     },
     {
@@ -140,7 +151,7 @@
         "reduceOptions": {"values": false, "calcs": ["lastNotNull"], "fields": ""}
       },
       "targets": [
-        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DB\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
+        {"refId": "A", "query": "from(bucket:\"actuators\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DB\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> group(columns: [\"_measurement\", \"device_id\"]) |> last()"}
       ]
     },
     {
@@ -169,6 +180,21 @@
       "targets": [
         {"refId": "A", "query": "from(bucket:\"sensors\") |> range(start: -1h) |> filter(fn: (r) => r._measurement == \"DMS\") |> filter(fn: (r) => r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"value\") |> filter(fn: (r) => not exists r.unit) |> filter(fn: (r) => r._value <= 1) |> map(fn: (r) => ({ r with _value: if r._value > 0 then 1 else 0 })) |> last()"}
       ]
+    },
+    {
+      "title": "Security Events",
+      "type": "table",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+      "id": 8,
+      "targets": [
+        {
+          "refId": "A",
+          "query": "from(bucket:\"sensors\") |> range(start: -24h) |> filter(fn: (r) => r._measurement == \"security_events\" and r[\"device_id\"] == \"$device_id\") |> filter(fn: (r) => r._field == \"event\" or r._field == \"state\" or r._field == \"alarm_reason\" or r._field == \"occupancy\") |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\") |> sort(columns: [\"_time\"], desc: true) |> limit(n: 50)"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      }
     }
   ],
   "refresh": "5s",

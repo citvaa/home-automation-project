@@ -43,6 +43,7 @@ class DBController:
                     "simulated": self.settings.get("simulated", False) if self.settings else False,
                     "device_id": cfg.device.id,
                     "device_name": cfg.device.name,
+                    "source": "device",
                 }
                 # Allow overriding server URL via env var (useful in Docker)
                 url = os.environ.get("SERVER_URL")

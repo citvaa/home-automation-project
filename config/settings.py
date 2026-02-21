@@ -66,6 +66,20 @@ class InfluxConfig:
 
 
 @dataclass
+class SecurityConfig:
+    pin: str = "1234"
+    arming_delay_seconds: int = 10
+    entry_delay_seconds: int = 10
+    door_open_seconds: int = 5
+    pir_led_seconds: int = 10
+    dus1_window_seconds: int = 5
+    dus1_trend_delta_cm: float = 10.0
+    dms_digit_pause_seconds: int = 2
+    dms_pin_length: int = 4
+    dms_max_presses: int = 10
+
+
+@dataclass
 class ServerConfig:
     influx: InfluxConfig = field(default_factory=InfluxConfig)
     subscribe_topics: List[str] = field(default_factory=lambda: ["sensors/#", "actuators/#"])
@@ -79,6 +93,7 @@ class Config:
     mqtt: MqttConfig = field(default_factory=MqttConfig)
     batch: BatchConfig = field(default_factory=BatchConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
+    security: SecurityConfig = field(default_factory=SecurityConfig)
 
     # Raw sensor-specific configuration entries (kept as-is)
     sensors: Dict[str, Any] = field(default_factory=dict)
@@ -145,6 +160,9 @@ def load_config(file_path: Optional[PathLike] = None) -> Config:
         cfg.server.listen_host = server_raw.get("listen_host", cfg.server.listen_host)
         cfg.server.listen_port = server_raw.get("listen_port", cfg.server.listen_port)
 
+    if "security" in raw and isinstance(raw["security"], dict):
+        _merge_dict_to_dataclass(cfg.security, raw["security"])
+
     # Environment overrides (useful for Docker/host differences)
     env_broker = os.environ.get("MQTT_BROKER")
     if env_broker:
@@ -182,7 +200,7 @@ def load_config(file_path: Optional[PathLike] = None) -> Config:
         cfg.device.name = env_device_name
 
     # Merge per-sensor keys (anything not in known sections)
-    known = {"device", "mqtt", "batch", "server"}
+    known = {"device", "mqtt", "batch", "server", "security"}
     sensors = {k: v for k, v in raw.items() if k not in known}
     cfg.sensors.update(sensors)
 
@@ -198,4 +216,13 @@ def load_config(file_path: Optional[PathLike] = None) -> Config:
 
 
 # Convenience: allow importing Config and load_config directly from module
-__all__ = ["DeviceConfig", "MqttConfig", "BatchConfig", "InfluxConfig", "ServerConfig", "Config", "load_config"]
+__all__ = [
+    "DeviceConfig",
+    "MqttConfig",
+    "BatchConfig",
+    "InfluxConfig",
+    "SecurityConfig",
+    "ServerConfig",
+    "Config",
+    "load_config",
+]
