@@ -123,6 +123,13 @@ export class App implements OnInit, OnDestroy {
       return active ? 'ACTIVE' : 'INACTIVE';
     }
 
+    if (key === 'DUS1') {
+      const numeric = typeof value === 'number' ? value : Number(value);
+      if (!Number.isNaN(numeric)) {
+        return numeric.toFixed(3);
+      }
+    }
+
     return `${value}`;
   }
 
