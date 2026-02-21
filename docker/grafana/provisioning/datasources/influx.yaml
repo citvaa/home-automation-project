@@ -14,4 +14,4 @@ providers:
       defaultBucket: "sensors"
       httpMode: "POST"
     secureJsonData:
-      token: "OCSZ_-81aj7smuawVKxaVpMU5USeLRPWadDx7e7Q2P0_T1wlkHB-de2fAGLnTnG1lWwcIWR1LvUPgAbQ5_QQbQ=="
+      token: "influx-token"

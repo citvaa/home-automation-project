@@ -1,0 +1,44 @@
+<main class="page">
+  <header class="header">
+    <h1>Home Automation Dashboard</h1>
+    <div class="meta">
+      <label class="device-select">
+        Device:
+        <select [value]="selectedDeviceId" (change)="onDeviceChange($any($event.target).value)">
+          @for (device of devices; track device) {
+            <option [value]="device">{{ device }}</option>
+          }
+        </select>
+      </label>
+      <span>Last refresh: {{ updatedAt }}</span>
+    </div>
+  </header>
+
+  @if (loading) {
+    <p class="info">Učitavanje podataka...</p>
+  }
+
+  @if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  }
+
+  <section class="status-grid">
+    @for (element of elements; track element.key) {
+      <article class="card">
+        <h2>{{ element.label }}</h2>
+        <p class="value">{{ element.displayValue }} <span class="unit">{{ element.unit }}</span></p>
+        <p class="timestamp">Updated: {{ element.timestamp }}</p>
+      </article>
+    }
+  </section>
+
+  <section class="grafana-section">
+    <h2>Grafana</h2>
+    <iframe
+      [src]="grafanaUrl"
+      title="Grafana Dashboard"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+    ></iframe>
+  </section>
+</main>

@@ -345,6 +345,57 @@ class MqttInfluxService:
         except Exception as ex:
             logger.warning("bucket ensure failed: %s", ex)
 
+    def _query_latest_measurement(self, bucket: str, measurement: str, device_id: str) -> Optional[Dict[str, Any]]:
+        if self._influx_client is None or not hasattr(self._influx_client, "query_api"):
+            return None
+        try:
+            query_api = self._influx_client.query_api()
+            flux = (
+                f'from(bucket:"{bucket}") '
+                f'|> range(start: -24h) '
+                f'|> filter(fn: (r) => r._measurement == "{measurement}") '
+                f'|> filter(fn: (r) => r["device_id"] == "{device_id}") '
+                f'|> filter(fn: (r) => r._field == "value" or r._field == "value_str") '
+                f'|> group() '
+                f'|> sort(columns: ["_time"], desc: true) '
+                f'|> limit(n: 1)'
+            )
+            tables = query_api.query(org=self.cfg.server.influx.org, query=flux)
+            for table in tables:
+                for record in table.records:
+                    timestamp = record.get_time()
+                    unit = record.values.get("unit") if hasattr(record, "values") else None
+                    return {
+                        "value": record.get_value(),
+                        "timestamp": timestamp.isoformat() if timestamp is not None else None,
+                        "unit": unit,
+                        "bucket": bucket,
+                    }
+        except Exception as ex:
+            logger.warning("failed querying latest measurement %s from bucket %s: %s", measurement, bucket, ex)
+        return None
+
+    def get_current_state(self, device_id: str) -> Dict[str, Any]:
+        measurements: List[Tuple[str, str]] = [
+            ("DS1", self.cfg.server.influx.bucket),
+            ("DPIR1", self.cfg.server.influx.bucket),
+            ("DUS1", self.cfg.server.influx.bucket),
+            ("DMS", self.cfg.server.influx.bucket),
+            ("DL", self.cfg.server.influx.actuator_bucket),
+            ("DB", self.cfg.server.influx.actuator_bucket),
+        ]
+
+        elements: Dict[str, Any] = {}
+        for measurement, bucket in measurements:
+            latest = self._query_latest_measurement(bucket=bucket, measurement=measurement, device_id=device_id)
+            elements[measurement] = latest
+
+        return {
+            "device_id": device_id,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "elements": elements,
+        }
+
     # Helper to publish actuator messages
     def publish_actuator(self, actuator_type: str, payload: Dict[str, Any], qos: Optional[int] = None, device_id: Optional[str] = None):
         # allow overriding device_id for topic construction (useful for per-request device ids)

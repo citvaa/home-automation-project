@@ -11,9 +11,25 @@ cfg = load_config()
 # Create a single service instance
 _svc = MqttInfluxService(cfg)
 
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return response
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
+
+
+@app.route("/status/<device_id>", methods=["GET"])
+def status(device_id):
+    try:
+        return jsonify(_svc.get_current_state(device_id)), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/actuator/<device_id>/<actuator_type>", methods=["POST"])
 def actuator(device_id, actuator_type):
