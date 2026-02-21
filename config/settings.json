@@ -35,7 +35,7 @@
     "server": {
         "influx": {
             "url": "http://influxdb:8086",
-            "token": "YN6ivuyXkelTKgdb4UIuuVdVMr3KNB77_bZaS4peZJCuc-Uy1SdKlshxFJn1VUaEKJn6vqPKEMiNFmDgWYWvBg==",
+            "token": "influx-token",
             "org": "ftn",
             "bucket": "sensors",
             "actuator_bucket": "actuators"

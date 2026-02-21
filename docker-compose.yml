@@ -1,6 +1,7 @@
 services:
   mosquitto:
     image: eclipse-mosquitto:2.0
+    attach: false
     ports:
       - '1883:1883'
       - '9001:9001'
@@ -11,6 +12,7 @@ services:
 
   influxdb:
     image: influxdb:2.7
+    attach: false
     environment:
       - INFLUXDB_INIT_MODE=setup
       - INFLUXDB_INIT_USERNAME=admin
@@ -25,6 +27,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
+    attach: false
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ALLOW_EMBEDDING=true
@@ -39,11 +42,12 @@ services:
 
   app:
     build: .
+    attach: false
     depends_on:
       - mosquitto
       - influxdb
     environment:
-      - INFLUX_TOKEN=YN6ivuyXkelTKgdb4UIuuVdVMr3KNB77_bZaS4peZJCuc-Uy1SdKlshxFJn1VUaEKJn6vqPKEMiNFmDgWYWvBg==
+      - INFLUX_TOKEN=influx-token
       - INFLUX_ORG=ftn
       - INFLUX_BUCKET=sensors
       - INFLUX_ACTUATOR_BUCKET=actuators
@@ -56,6 +60,7 @@ services:
 
   device:
     build: .
+    attach: true
     depends_on:
       - mosquitto
     stdin_open: true
