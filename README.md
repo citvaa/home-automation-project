@@ -1,23 +1,23 @@
 # Home Automation Project
 
-IoT sistem za nadzor i upravljanje kućnim uređajima sa MQTT komunikacijom, InfluxDB skladištenjem, Flask API-jem, Angular web aplikacijom i Grafana dashboard-om.
+An IoT system for home monitoring and control, built with MQTT messaging, InfluxDB storage, a Flask API, an Angular web app, and Grafana dashboards.
 
-## Arhitektura
+## Architecture
 
-Projekat se sastoji od sledećih delova:
+The project consists of the following parts:
 
-- **edge/** – simulacija ili rad sa stvarnim senzorima/aktuatorima (DS1, DPIR1, DUS1, DMS, WEBC, DL, DB), MQTT publish/subscribe logika.
-- **server/** – Flask API + servis koji čita poruke sa MQTT-a, upisuje u InfluxDB i vodi bezbednosno stanje (arming/disarming/alarm).
-- **webapp/** – Angular klijent za pregled stanja uređaja i kontrolu bezbednosnog režima.
-- **docker-compose.yml** – podizanje infrastrukture i backend servisa (Mosquitto, InfluxDB, Grafana, app, device).
+- **edge/** - Simulation or real hardware integration for sensors/actuators (DS1, DPIR1, DUS1, DMS, WEBC, DL, DB), including MQTT publish/subscribe logic.
+- **server/** - Flask API + service that consumes MQTT messages, writes data to InfluxDB, and manages security state (arming/disarming/alarm).
+- **webapp/** - Angular client for monitoring device state and controlling the security mode.
+- **docker-compose.yml** - Infrastructure and backend services (Mosquitto, InfluxDB, Grafana, app, device).
 
-Tok podataka:
-1. Edge publikuje senzorske podatke na MQTT.
-2. Server preuzima poruke sa MQTT i upisuje ih u InfluxDB.
-3. Web app čita stanje preko Flask API-ja.
-4. Komande za aktuatore i bezbednosne akcije idu preko API-ja nazad na edge uređaj.
+Data flow:
+1. Edge publishes sensor data to MQTT.
+2. Server consumes MQTT messages and stores them in InfluxDB.
+3. Web app reads current state through the Flask API.
+4. Actuator and security commands are sent through the API back to edge devices.
 
-## Tehnologije
+## Technologies
 
 - Python 3.11
 - Flask
@@ -27,35 +27,35 @@ Tok podataka:
 - Angular 21
 - Docker / Docker Compose
 
-## Pokretanje (preporučeno: Docker)
+## Running the project (recommended: Docker)
 
-Preduslovi:
-- Docker Desktop (sa Docker Compose podrškom)
-- Node.js + npm (samo za webapp)
+Prerequisites:
+- Docker Desktop (with Docker Compose support)
+- Node.js + npm (for the web app only)
 
-U root direktorijumu projekta pokreni:
+From the project root, run:
 
 ```powershell
 docker compose up -d --build mosquitto influxdb grafana app
 docker compose run --rm --service-ports device
 ```
 
-Na Windows-u možeš i:
+On Windows, you can also run:
 
 ```powershell
 .\run-device-interactive.ps1
 ```
 
-Servisi nakon pokretanja:
+Services after startup:
 
 - Flask API: `http://localhost:5000`
 - Grafana: `http://localhost:3000` (admin / admin)
 - InfluxDB: `http://localhost:8086`
 - MQTT broker: `localhost:1883`
 
-## Pokretanje web aplikacije
+## Running the web application
 
-Web app nije u docker-compose servisu, pa se pokreće lokalno:
+The web app is not included as a Docker Compose service, so run it locally:
 
 ```powershell
 cd webapp
@@ -63,20 +63,20 @@ npm install
 npm run start
 ```
 
-UI je dostupan na `http://localhost:4200`.
+The UI is available at `http://localhost:4200`.
 
-## API rute
+## API routes
 
-Osnovne rute servera:
+Main server routes:
 
-- `GET /health` – health check
-- `GET /status/<device_id>` – trenutno stanje senzora/aktuatora i security snapshot
-- `POST /actuator/<device_id>/<actuator_type>` – slanje komande aktuatoru (npr. `led`, `buzzer`)
-- `GET /security/<device_id>` – trenutno security stanje
-- `POST /security/<device_id>/arm` – aktiviranje sistema (`{"pin":"1234"}`)
-- `POST /security/<device_id>/disarm` – deaktiviranje sistema (`{"pin":"1234"}`)
+- `GET /health` - Health check
+- `GET /status/<device_id>` - Current sensor/actuator state and security snapshot
+- `POST /actuator/<device_id>/<actuator_type>` - Send actuator command (e.g. `led`, `buzzer`)
+- `GET /security/<device_id>` - Current security state
+- `POST /security/<device_id>/arm` - Arm system (`{"pin":"1234"}`)
+- `POST /security/<device_id>/disarm` - Disarm system (`{"pin":"1234"}`)
 
-Primer:
+Example:
 
 ```bash
 curl -X POST http://localhost:5000/security/PI1/arm ^
@@ -84,19 +84,19 @@ curl -X POST http://localhost:5000/security/PI1/arm ^
   -d "{\"pin\":\"1234\"}"
 ```
 
-## Konfiguracija
+## Configuration
 
-Glavna konfiguracija je u `config/settings.json`:
+Main configuration is in `config/settings.json`:
 
-- MQTT broker, topic pattern-i i QoS
-- Parametri batch publish-a
-- InfluxDB konekcija i bucket-i
-- Security pravila (PIN, kašnjenja, pragovi)
-- Simulacija i pin mapiranje za senzore/aktuatora
+- MQTT broker, topic patterns, and QoS
+- Batch publish parameters
+- InfluxDB connection and buckets
+- Security rules (PIN, delays, thresholds)
+- Simulation flags and pin mapping for sensors/actuators
 
-Napomena: deo vrednosti može biti pregažen env promenljivama (`MQTT_BROKER`, `MQTT_PORT`, `INFLUX_*`, `DEVICE_ID`, `DEVICE_NAME`).
+Note: some values can be overridden via environment variables (`MQTT_BROKER`, `MQTT_PORT`, `INFLUX_*`, `DEVICE_ID`, `DEVICE_NAME`).
 
-## Struktura projekta
+## Project structure
 
 ```text
 home-automation-project/
